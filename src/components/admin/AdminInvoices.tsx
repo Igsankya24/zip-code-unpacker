@@ -21,8 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Download, Printer, Plus, Trash2, Search } from "lucide-react";
+import { FileText, Download, Printer, Plus, Trash2, Search, Save, History, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 interface Appointment {
   id: string;
@@ -63,17 +64,31 @@ interface InvoiceData {
   taxRate: number;
   taxAmount: number;
   discount: number;
+  discountPercent: number;
+  couponCode: string | null;
   total: number;
   notes: string;
   terms: string;
 }
 
+interface SavedInvoice {
+  id: string;
+  invoice_number: string;
+  customer_name: string;
+  total: number;
+  status: string;
+  created_at: string;
+}
+
 const AdminInvoices = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [savedInvoices, setSavedInvoices] = useState<SavedInvoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAppointment, setSelectedAppointment] = useState<string>("");
   const [showInvoice, setShowInvoice] = useState(false);
+  const [activeTab, setActiveTab] = useState<"create" | "history">("create");
   const [companyInfo, setCompanyInfo] = useState({
     name: "Krishna Tech Solutions",
     address: "Main Road, Karnataka",
@@ -94,12 +109,31 @@ const AdminInvoices = () => {
     taxRate: 18,
     taxAmount: 0,
     discount: 0,
+    discountPercent: 0,
+    couponCode: null,
     total: 0,
     notes: "",
     terms: "Payment is due within 7 days of invoice date.",
   });
   const invoiceRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchAppointments();
+    fetchCompanyInfo();
+    fetchSavedInvoices();
+  }, []);
+
+  const fetchSavedInvoices = async () => {
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("id, invoice_number, customer_name, total, status, created_at")
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setSavedInvoices(data);
+    }
+  };
 
   useEffect(() => {
     fetchAppointments();
@@ -225,11 +259,54 @@ const AdminInvoices = () => {
         items,
         subtotal,
         taxAmount,
-        discount: 0, // Discount already applied to service price
+        discount: discountAmount,
+        discountPercent,
+        couponCode,
         total,
         notes: `Appointment Reference: ${apt.reference_id || apt.id}\nDate: ${format(new Date(apt.appointment_date), "PPP")}\nTime: ${apt.appointment_time}${discountPercent > 0 ? `\nDiscount Applied: ${discountPercent}%${couponCode ? ` (Code: ${couponCode})` : ''}` : ''}`,
       });
     }
+  };
+
+  const handleSaveInvoice = async () => {
+    if (!invoice.invoiceNumber || !invoice.customerName) {
+      toast({ title: "Error", description: "Please generate an invoice first", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    const { data: user } = await supabase.auth.getUser();
+    
+    const { error } = await supabase.from("invoices").insert({
+      invoice_number: invoice.invoiceNumber,
+      appointment_id: selectedAppointment || null,
+      customer_name: invoice.customerName,
+      customer_email: invoice.customerEmail,
+      customer_phone: invoice.customerPhone,
+      customer_address: invoice.customerAddress,
+      items: invoice.items,
+      subtotal: invoice.subtotal,
+      tax_rate: invoice.taxRate,
+      tax_amount: invoice.taxAmount,
+      discount: invoice.discount,
+      discount_percent: invoice.discountPercent,
+      coupon_code: invoice.couponCode,
+      total: invoice.total,
+      notes: invoice.notes,
+      terms: invoice.terms,
+      status: "saved",
+      created_by: user?.user?.id,
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to save invoice", variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Success", description: "Invoice saved successfully!" });
+    fetchSavedInvoices();
   };
 
   const addItem = () => {
@@ -399,10 +476,68 @@ const AdminInvoices = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Invoice Generator</h2>
-          <p className="text-muted-foreground">Create invoices for completed appointments</p>
+          <p className="text-muted-foreground">Create and manage invoices for appointments</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={activeTab === "create" ? "default" : "outline"}
+            onClick={() => setActiveTab("create")}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create
+          </Button>
+          <Button
+            variant={activeTab === "history" ? "default" : "outline"}
+            onClick={() => setActiveTab("history")}
+          >
+            <History className="w-4 h-4 mr-2" />
+            History ({savedInvoices.length})
+          </Button>
         </div>
       </div>
 
+      {activeTab === "history" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              Saved Invoices
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {savedInvoices.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No invoices saved yet</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {savedInvoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">{inv.invoice_number}</TableCell>
+                      <TableCell>{inv.customer_name}</TableCell>
+                      <TableCell>₹{Number(inv.total).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant={inv.status === "paid" ? "default" : "secondary"}>
+                          {inv.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{format(new Date(inv.created_at), "PPP")}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Appointment Selection */}
         <Card>
@@ -561,9 +696,13 @@ const AdminInvoices = () => {
         {showInvoice && (
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle>Invoice Preview</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={handleSaveInvoice} disabled={saving}>
+                    <Save className="w-4 h-4 mr-1" />
+                    {saving ? "Saving..." : "Save Invoice"}
+                  </Button>
                   <Button variant="outline" size="sm" onClick={handlePrint}>
                     <Printer className="w-4 h-4 mr-1" />
                     Print
@@ -677,6 +816,7 @@ const AdminInvoices = () => {
           </Card>
         )}
       </div>
+      )}
     </div>
   );
 };
