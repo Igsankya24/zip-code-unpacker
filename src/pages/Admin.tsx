@@ -164,6 +164,19 @@ const Admin = () => {
     }
   };
 
+  const clearAllNotifications = async () => {
+    if (notifications.length === 0) return;
+    
+    const notificationIds = notifications.map(n => n.id);
+    
+    // Optimistically clear UI
+    setNotifications([]);
+    setUnreadCount(0);
+    
+    // Delete from database
+    await supabase.from("notifications").delete().in("id", notificationIds);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -437,11 +450,18 @@ const Admin = () => {
             <PopoverContent className="w-80 p-0" align="end">
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <h4 className="font-semibold">Notifications</h4>
-                {unreadCount > 0 && (
-                  <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                    <Check className="w-4 h-4 mr-1" /> Mark all read
-                  </Button>
-                )}
+                <div className="flex gap-1">
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+                      <Check className="w-4 h-4 mr-1" /> Read all
+                    </Button>
+                  )}
+                  {notifications.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearAllNotifications} className="text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length > 0 ? (
