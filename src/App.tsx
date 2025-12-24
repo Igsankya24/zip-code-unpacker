@@ -15,28 +15,30 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <MaintenanceProvider>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </MaintenanceProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <MaintenanceProvider>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </MaintenanceProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
