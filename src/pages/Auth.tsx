@@ -62,13 +62,24 @@ const Auth = () => {
               setIsLoading(false);
               return;
             }
+
+            // Check if user is admin/super_admin
+            const { data: roles } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", user.id);
+
+            const userRoles = roles?.map(r => r.role) || [];
+            const isAdminUser = userRoles.includes("admin") || userRoles.includes("super_admin");
+            
+            toast({
+              title: "Welcome back!",
+              description: "You have successfully logged in.",
+            });
+            
+            // Redirect admins to admin panel, regular users to home
+            navigate(isAdminUser ? "/admin" : "/");
           }
-          
-          toast({
-            title: "Welcome back!",
-            description: "You have successfully logged in.",
-          });
-          navigate("/admin");
         }
       } else {
         const { error } = await signUp(email, password, fullName);

@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_permissions: {
+        Row: {
+          can_confirm_appointments: boolean | null
+          can_delete_appointments: boolean | null
+          can_manage_coupons: boolean | null
+          can_manage_services: boolean | null
+          can_manage_settings: boolean | null
+          can_manage_users: boolean | null
+          can_view_appointments: boolean | null
+          can_view_coupons: boolean | null
+          can_view_messages: boolean | null
+          can_view_services: boolean | null
+          can_view_settings: boolean | null
+          can_view_users: boolean | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_confirm_appointments?: boolean | null
+          can_delete_appointments?: boolean | null
+          can_manage_coupons?: boolean | null
+          can_manage_services?: boolean | null
+          can_manage_settings?: boolean | null
+          can_manage_users?: boolean | null
+          can_view_appointments?: boolean | null
+          can_view_coupons?: boolean | null
+          can_view_messages?: boolean | null
+          can_view_services?: boolean | null
+          can_view_settings?: boolean | null
+          can_view_users?: boolean | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_confirm_appointments?: boolean | null
+          can_delete_appointments?: boolean | null
+          can_manage_coupons?: boolean | null
+          can_manage_services?: boolean | null
+          can_manage_settings?: boolean | null
+          can_manage_users?: boolean | null
+          can_view_appointments?: boolean | null
+          can_view_coupons?: boolean | null
+          can_view_messages?: boolean | null
+          can_view_services?: boolean | null
+          can_view_settings?: boolean | null
+          can_view_users?: boolean | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -136,6 +193,42 @@ export type Database = {
           updated_at?: string | null
           valid_from?: string | null
           valid_until?: string
+        }
+        Relationships: []
+      }
+      deletion_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          reason: string | null
+          request_type: string
+          requested_by: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          target_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          request_type: string
+          requested_by: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          target_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          request_type?: string
+          requested_by?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          target_id?: string
         }
         Relationships: []
       }

@@ -16,7 +16,9 @@ import {
   Check,
   MessageSquare,
   UserCircle,
-  Bot
+  Bot,
+  Shield,
+  Trash2
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -26,6 +28,8 @@ import AdminAppointments from "@/components/admin/AdminAppointments";
 import AdminMessages from "@/components/admin/AdminMessages";
 import AdminProfileSettings from "@/components/admin/AdminProfileSettings";
 import AdminBot from "@/components/admin/AdminBot";
+import AdminPermissions from "@/components/admin/AdminPermissions";
+import AdminDeletionRequests from "@/components/admin/AdminDeletionRequests";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Popover,
@@ -33,7 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile";
+type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests";
 
 interface DashboardStats {
   totalUsers: number;
@@ -43,6 +47,7 @@ interface DashboardStats {
   pendingAppointments: number;
   totalCoupons: number;
   unreadMessages: number;
+  pendingDeletionRequests: number;
 }
 
 interface Notification {
@@ -65,10 +70,11 @@ const Admin = () => {
     pendingAppointments: 0,
     totalCoupons: 0,
     unreadMessages: 0,
+    pendingDeletionRequests: 0,
   });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { user, isAdmin, isLoading, signOut } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isLoading, signOut, permissions } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -91,12 +97,13 @@ const Admin = () => {
   }, [isAdmin]);
 
   const fetchStats = async () => {
-    const [usersRes, servicesRes, appointmentsRes, couponsRes, messagesRes] = await Promise.all([
+    const [usersRes, servicesRes, appointmentsRes, couponsRes, messagesRes, deletionRes] = await Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
       supabase.from("services").select("id, is_visible"),
       supabase.from("appointments").select("id, status"),
       supabase.from("coupons").select("id", { count: "exact", head: true }),
       supabase.from("contact_messages").select("id, is_read"),
+      isSuperAdmin ? supabase.from("deletion_requests").select("id, status").eq("status", "pending") : { data: [] },
     ]);
 
     setStats({
@@ -107,6 +114,7 @@ const Admin = () => {
       pendingAppointments: appointmentsRes.data?.filter(a => a.status === "pending").length || 0,
       totalCoupons: couponsRes.count || 0,
       unreadMessages: messagesRes.data?.filter(m => !m.is_read).length || 0,
+      pendingDeletionRequests: deletionRes.data?.length || 0,
     });
   };
 
@@ -114,6 +122,7 @@ const Admin = () => {
     const { data } = await supabase
       .from("notifications")
       .select("*")
+      .or(`user_id.eq.${user?.id},user_id.is.null`)
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -129,8 +138,11 @@ const Admin = () => {
   };
 
   const markAllAsRead = async () => {
-    await supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
-    fetchNotifications();
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    if (unreadIds.length > 0) {
+      await supabase.from("notifications").update({ is_read: true }).in("id", unreadIds);
+      fetchNotifications();
+    }
   };
 
   if (isLoading) {
@@ -153,17 +165,22 @@ const Admin = () => {
     navigate("/");
   };
 
-  const tabs = [
-    { id: "dashboard" as AdminTab, label: "Dashboard", icon: LayoutDashboard },
-    { id: "services" as AdminTab, label: "Services", icon: Briefcase },
-    { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar },
-    { id: "messages" as AdminTab, label: "Messages", icon: MessageSquare, badge: stats.unreadMessages },
-    { id: "users" as AdminTab, label: "Users", icon: Users },
-    { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket },
-    { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot },
-    { id: "profile" as AdminTab, label: "My Profile", icon: UserCircle },
-    { id: "settings" as AdminTab, label: "Settings", icon: Settings },
+  // Filter tabs based on permissions
+  const allTabs = [
+    { id: "dashboard" as AdminTab, label: "Dashboard", icon: LayoutDashboard, visible: true },
+    { id: "services" as AdminTab, label: "Services", icon: Briefcase, visible: permissions.can_view_services },
+    { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar, visible: permissions.can_view_appointments },
+    { id: "messages" as AdminTab, label: "Messages", icon: MessageSquare, badge: stats.unreadMessages, visible: permissions.can_view_messages },
+    { id: "users" as AdminTab, label: "Users", icon: Users, visible: permissions.can_view_users },
+    { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket, visible: permissions.can_view_coupons },
+    { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot, visible: permissions.can_view_settings },
+    { id: "permissions" as AdminTab, label: "Permissions", icon: Shield, visible: isSuperAdmin },
+    { id: "deletion-requests" as AdminTab, label: "Deletion Requests", icon: Trash2, badge: stats.pendingDeletionRequests, visible: isSuperAdmin },
+    { id: "profile" as AdminTab, label: "My Profile", icon: UserCircle, visible: true },
+    { id: "settings" as AdminTab, label: "Settings", icon: Settings, visible: permissions.can_view_settings },
   ];
+
+  const tabs = allTabs.filter(tab => tab.visible);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -172,71 +189,96 @@ const Admin = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Dashboard</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div 
-                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
-                onClick={() => setActiveTab("users")}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-muted-foreground text-sm mb-2">Total Users</h3>
-                    <p className="text-3xl font-bold text-foreground">{stats.totalUsers}</p>
+              {permissions.can_view_users && (
+                <div 
+                  className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => setActiveTab("users")}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-muted-foreground text-sm mb-2">Total Users</h3>
+                      <p className="text-3xl font-bold text-foreground">{stats.totalUsers}</p>
+                    </div>
+                    <Users className="w-10 h-10 text-primary/50" />
                   </div>
-                  <Users className="w-10 h-10 text-primary/50" />
                 </div>
-              </div>
-              <div 
-                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
-                onClick={() => setActiveTab("services")}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-muted-foreground text-sm mb-2">Services</h3>
-                    <p className="text-3xl font-bold text-foreground">{stats.activeServices}/{stats.totalServices}</p>
-                    <p className="text-xs text-muted-foreground">visible / total</p>
+              )}
+              {permissions.can_view_services && (
+                <div 
+                  className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => setActiveTab("services")}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-muted-foreground text-sm mb-2">Services</h3>
+                      <p className="text-3xl font-bold text-foreground">{stats.activeServices}/{stats.totalServices}</p>
+                      <p className="text-xs text-muted-foreground">visible / total</p>
+                    </div>
+                    <Briefcase className="w-10 h-10 text-primary/50" />
                   </div>
-                  <Briefcase className="w-10 h-10 text-primary/50" />
                 </div>
-              </div>
-              <div 
-                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
-                onClick={() => setActiveTab("appointments")}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-muted-foreground text-sm mb-2">Appointments</h3>
-                    <p className="text-3xl font-bold text-foreground">{stats.totalAppointments}</p>
-                    {stats.pendingAppointments > 0 && (
-                      <p className="text-xs text-yellow-500">{stats.pendingAppointments} pending</p>
-                    )}
+              )}
+              {permissions.can_view_appointments && (
+                <div 
+                  className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => setActiveTab("appointments")}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-muted-foreground text-sm mb-2">Appointments</h3>
+                      <p className="text-3xl font-bold text-foreground">{stats.totalAppointments}</p>
+                      {stats.pendingAppointments > 0 && (
+                        <p className="text-xs text-yellow-500">{stats.pendingAppointments} pending</p>
+                      )}
+                    </div>
+                    <Calendar className="w-10 h-10 text-primary/50" />
                   </div>
-                  <Calendar className="w-10 h-10 text-primary/50" />
                 </div>
-              </div>
-              <div 
-                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
-                onClick={() => setActiveTab("coupons")}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-muted-foreground text-sm mb-2">Coupons</h3>
-                    <p className="text-3xl font-bold text-foreground">{stats.totalCoupons}</p>
+              )}
+              {permissions.can_view_coupons && (
+                <div 
+                  className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => setActiveTab("coupons")}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-muted-foreground text-sm mb-2">Coupons</h3>
+                      <p className="text-3xl font-bold text-foreground">{stats.totalCoupons}</p>
+                    </div>
+                    <Ticket className="w-10 h-10 text-primary/50" />
                   </div>
-                  <Ticket className="w-10 h-10 text-primary/50" />
                 </div>
-              </div>
-              <div 
-                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
-                onClick={() => setActiveTab("messages")}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-muted-foreground text-sm mb-2">Messages</h3>
-                    <p className="text-3xl font-bold text-foreground">{stats.unreadMessages}</p>
-                    <p className="text-xs text-muted-foreground">unread</p>
+              )}
+              {permissions.can_view_messages && (
+                <div 
+                  className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => setActiveTab("messages")}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-muted-foreground text-sm mb-2">Messages</h3>
+                      <p className="text-3xl font-bold text-foreground">{stats.unreadMessages}</p>
+                      <p className="text-xs text-muted-foreground">unread</p>
+                    </div>
+                    <MessageSquare className="w-10 h-10 text-primary/50" />
                   </div>
-                  <MessageSquare className="w-10 h-10 text-primary/50" />
                 </div>
-              </div>
+              )}
+              {isSuperAdmin && stats.pendingDeletionRequests > 0 && (
+                <div 
+                  className="bg-card rounded-xl p-6 border border-destructive/50 cursor-pointer hover:border-destructive transition-colors"
+                  onClick={() => setActiveTab("deletion-requests")}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-muted-foreground text-sm mb-2">Pending Deletions</h3>
+                      <p className="text-3xl font-bold text-destructive">{stats.pendingDeletionRequests}</p>
+                      <p className="text-xs text-muted-foreground">awaiting approval</p>
+                    </div>
+                    <Trash2 className="w-10 h-10 text-destructive/50" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -252,6 +294,10 @@ const Admin = () => {
         return <AdminMessages />;
       case "bot":
         return <AdminBot />;
+      case "permissions":
+        return isSuperAdmin ? <AdminPermissions /> : null;
+      case "deletion-requests":
+        return isSuperAdmin ? <AdminDeletionRequests /> : null;
       case "profile":
         return <AdminProfileSettings />;
       case "settings":
@@ -310,7 +356,12 @@ const Admin = () => {
 
           <div className="p-4 border-t border-border">
             <div className="mb-4 px-4">
-              <p className="text-sm font-medium text-foreground">Admin</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground">
+                  {isSuperAdmin ? "Super Admin" : "Admin"}
+                </p>
+                {isSuperAdmin && <Shield className="w-4 h-4 text-primary" />}
+              </div>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
             <Button
