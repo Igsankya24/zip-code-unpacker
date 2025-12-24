@@ -341,18 +341,75 @@ const Chatbot = () => {
         : service.price
       : null;
 
-    // Save as contact message for admin to review and create appointment
-    const { data: messageData, error: messageError } = await supabase.from("contact_messages").insert({
-      name: userDetails.name,
-      email: userDetails.email,
-      phone: userDetails.phone,
-      subject: `📅 Appointment Request: ${service?.name}${discountText}`,
-      message: `New appointment request:\n\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}\n📧 Email: ${userDetails.email}\n📱 Phone: ${userDetails.phone}${appliedCoupon ? `\n🎟️ Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n⚠️ Please create the appointment manually from admin panel.`,
-      source: "chatbot_booking",
-    }).select().single();
+    // First, check if user exists or create a guest profile
+    let userId: string | null = null;
+    
+    // Try to get current user
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    
+    if (currentUser) {
+      userId = currentUser.id;
+    } else {
+      // For guest bookings, we need to create a guest user or use anonymous booking
+      // Since RLS requires user_id, save as contact message for manual processing
+      const { error: messageError } = await supabase.from("contact_messages").insert({
+        name: userDetails.name,
+        email: userDetails.email,
+        phone: userDetails.phone,
+        subject: `📅 Guest Appointment Request: ${service?.name}${discountText}`,
+        message: `Guest appointment request (user not logged in):\n\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}\n📧 Email: ${userDetails.email}\n📱 Phone: ${userDetails.phone}${appliedCoupon ? `\n🎟️ Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n⚠️ Create appointment manually from admin panel.`,
+        source: "chatbot_booking",
+      });
 
-    // Generate a temporary reference for the user
-    const tempRef = `REQ-${format(new Date(), "yyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      if (messageError) {
+        toast({ title: "Error", description: "Failed to submit booking request", variant: "destructive" });
+        return;
+      }
+
+      const tempRef = `REQ-${format(new Date(), "yyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      
+      setMessages((prev) => [
+        ...prev,
+        { type: "user", text: `Booking: ${service?.name}` },
+        {
+          type: "bot",
+          text: `✅ Booking Request Submitted!\n\n🆔 Request ID: ${tempRef}\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime} (3 hours)\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n📞 Please login to track your appointment. We'll contact you shortly to confirm.\n\nSave your request ID: ${tempRef}`,
+        },
+      ]);
+
+      if (appliedCoupon) {
+        await supabase
+          .from("coupons")
+          .update({ current_uses: appliedCoupon.current_uses + 1 })
+          .eq("id", appliedCoupon.id);
+      }
+
+      toast({ title: "Success", description: "Booking request submitted!" });
+      resetBooking();
+      return;
+    }
+
+    // For logged-in users, create appointment directly
+    const appointmentDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+    const notes = `Booked via chatbot${appliedCoupon ? ` | Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? ` | Final Price: ₹${finalPrice.toFixed(0)}` : ""}`;
+
+    const { data: appointment, error: appointmentError } = await supabase
+      .from("appointments")
+      .insert({
+        user_id: userId,
+        service_id: selectedService,
+        appointment_date: appointmentDate,
+        appointment_time: selectedTime,
+        notes: notes,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (appointmentError) {
+      toast({ title: "Error", description: "Failed to create appointment", variant: "destructive" });
+      return;
+    }
 
     // Update coupon usage if applied
     if (appliedCoupon) {
@@ -367,11 +424,11 @@ const Chatbot = () => {
       { type: "user", text: `Booking: ${service?.name}` },
       {
         type: "bot",
-        text: `✅ Booking Request Submitted!\n\n🆔 Request ID: ${tempRef}\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime} (3 hours)\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n📞 We'll contact you shortly to confirm your appointment and provide the official reference ID.\n\nSave your request ID: ${tempRef}`,
+        text: `✅ Appointment Booked Successfully!\n\n🆔 Reference: ${appointment.reference_id}\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime} (3 hours)\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n📊 Status: PENDING\n\nYou can track your appointment using this reference ID!`,
       },
     ]);
 
-    toast({ title: "Success", description: "Booking request submitted!" });
+    toast({ title: "Success", description: "Appointment booked successfully!" });
     resetBooking();
   };
 
