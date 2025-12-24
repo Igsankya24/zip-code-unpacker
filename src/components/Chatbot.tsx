@@ -1,11 +1,18 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, X, Send, Calendar, Clock, User, Mail, Phone, Tag } from "lucide-react";
+import { MessageCircle, X, Send, Clock, User, Mail, Phone, Tag, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Message {
   type: "bot" | "user";
@@ -23,13 +30,17 @@ interface Coupon {
   code: string;
   discount_percent: number;
   valid_until: string;
+  current_uses: number;
 }
 
-type BookingStep = "chat" | "service" | "date" | "time" | "coupon" | "details" | "confirm";
+type BookingStep = "chat" | "date" | "time" | "details" | "confirm";
 
+// 3-hour appointment slots from 9 AM to 8 PM (last slot at 5 PM ends at 8 PM)
 const timeSlots = [
-  "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-  "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"
+  "09:00 AM",
+  "12:00 PM",
+  "02:00 PM",
+  "05:00 PM"
 ];
 
 const Chatbot = () => {
@@ -43,7 +54,7 @@ const Chatbot = () => {
   const [input, setInput] = useState("");
   const [step, setStep] = useState<BookingStep>("chat");
   const [services, setServices] = useState<Service[]>([]);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedService, setSelectedService] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState("");
   const [userDetails, setUserDetails] = useState({ name: "", email: "", phone: "" });
@@ -52,7 +63,7 @@ const Chatbot = () => {
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const { toast } = useToast();
 
-  const quickOptions = ["View Services", "Book Appointment", "Apply Coupon", "Contact Us"];
+  const quickOptions = ["View Services", "Book Appointment", "Contact Us"];
 
   useEffect(() => {
     fetchServices();
@@ -69,6 +80,8 @@ const Chatbot = () => {
   };
 
   const validateCoupon = async (code: string) => {
+    if (!code.trim()) return null;
+    
     setValidatingCoupon(true);
     const { data, error } = await supabase
       .from("coupons")
@@ -81,24 +94,24 @@ const Chatbot = () => {
     setValidatingCoupon(false);
 
     if (error || !data) {
-      setMessages((prev) => [
-        ...prev,
-        { type: "user", text: code },
-        { type: "bot", text: "❌ Invalid or expired coupon code. Please try again or skip." },
-      ]);
+      toast({ title: "Invalid Coupon", description: "This coupon code is invalid or expired.", variant: "destructive" });
       return null;
     }
 
     if (data.max_uses && data.current_uses >= data.max_uses) {
-      setMessages((prev) => [
-        ...prev,
-        { type: "user", text: code },
-        { type: "bot", text: "❌ This coupon has reached its usage limit." },
-      ]);
+      toast({ title: "Coupon Limit Reached", description: "This coupon has reached its usage limit.", variant: "destructive" });
       return null;
     }
 
     return data as Coupon;
+  };
+
+  const handleApplyCoupon = async () => {
+    const coupon = await validateCoupon(couponCode.trim());
+    if (coupon) {
+      setAppliedCoupon(coupon);
+      toast({ title: "Coupon Applied!", description: `${coupon.discount_percent}% discount applied.` });
+    }
   };
 
   const handleSend = async () => {
@@ -113,21 +126,10 @@ const Chatbot = () => {
           ...prev,
           {
             type: "bot",
-            text: "I'd be happy to help you book an appointment! Let me guide you through the process. Please select a service:",
+            text: "I'd be happy to help you book an appointment! Each appointment is 3 hours long. Please select a date first:",
           },
         ]);
-        setStep("service");
-      }, 500);
-    } else if (lowerInput.includes("coupon") || lowerInput.includes("discount")) {
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "bot",
-            text: "Please enter your coupon code to apply a discount:",
-          },
-        ]);
-        setStep("coupon");
+        setStep("date");
       }, 500);
     } else if (lowerInput.includes("service") || lowerInput.includes("price") || lowerInput.includes("offer")) {
       setTimeout(() => {
@@ -169,21 +171,15 @@ const Chatbot = () => {
       if (option === "Book Appointment") {
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: "Let me help you book an appointment. Please select a service:" },
+          { type: "bot", text: "Let me help you book an appointment! Each appointment is 3 hours long (9 AM - 8 PM). Please select a date:" },
         ]);
-        setStep("service");
+        setStep("date");
       } else if (option === "View Services") {
         const serviceList = services.map(s => `• ${s.name} - ₹${s.price || 'Contact for price'}`).join('\n');
         setMessages((prev) => [
           ...prev,
           { type: "bot", text: `Here are our services:\n\n${serviceList}\n\nWould you like to book an appointment?` },
         ]);
-      } else if (option === "Apply Coupon") {
-        setMessages((prev) => [
-          ...prev,
-          { type: "bot", text: "Please enter your coupon code:" },
-        ]);
-        setStep("coupon");
       } else if (option === "Contact Us") {
         setMessages((prev) => [
           ...prev,
@@ -193,23 +189,13 @@ const Chatbot = () => {
     }, 800);
   };
 
-  const handleServiceSelect = (service: Service) => {
-    setSelectedService(service);
-    setMessages((prev) => [
-      ...prev,
-      { type: "user", text: service.name },
-      { type: "bot", text: `Great choice! Now please select a date for your ${service.name} appointment:` },
-    ]);
-    setStep("date");
-  };
-
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
     setSelectedDate(date);
     setMessages((prev) => [
       ...prev,
       { type: "user", text: format(date, "PPP") },
-      { type: "bot", text: "Please select a time slot:" },
+      { type: "bot", text: "Please select a time slot (each appointment is 3 hours):" },
     ]);
     setStep("time");
   };
@@ -219,58 +205,35 @@ const Chatbot = () => {
     setMessages((prev) => [
       ...prev,
       { type: "user", text: time },
-      { type: "bot", text: "Do you have a coupon code? Enter it below or click 'Skip' to continue:" },
-    ]);
-    setStep("coupon");
-  };
-
-  const handleCouponApply = async () => {
-    if (!couponCode.trim()) {
-      skipCoupon();
-      return;
-    }
-
-    const coupon = await validateCoupon(couponCode.trim());
-    if (coupon) {
-      setAppliedCoupon(coupon);
-      setMessages((prev) => [
-        ...prev,
-        { type: "user", text: couponCode },
-        { type: "bot", text: `✅ Coupon applied! You get ${coupon.discount_percent}% off. Now please enter your details:` },
-      ]);
-      setCouponCode("");
-      setStep("details");
-    }
-  };
-
-  const skipCoupon = () => {
-    setMessages((prev) => [
-      ...prev,
-      { type: "user", text: "No coupon" },
-      { type: "bot", text: "No problem! Please enter your details to confirm the booking:" },
+      { type: "bot", text: "Now please fill in your details and select a service:" },
     ]);
     setStep("details");
   };
 
+  const getSelectedServiceData = () => {
+    return services.find(s => s.id === selectedService);
+  };
+
   const handleBookingSubmit = async () => {
-    if (!userDetails.name || !userDetails.email || !userDetails.phone) {
-      toast({ title: "Error", description: "Please fill all fields", variant: "destructive" });
+    if (!userDetails.name || !userDetails.email || !userDetails.phone || !selectedService) {
+      toast({ title: "Error", description: "Please fill all required fields", variant: "destructive" });
       return;
     }
 
+    const service = getSelectedServiceData();
     const discountText = appliedCoupon ? ` (${appliedCoupon.discount_percent}% off with code: ${appliedCoupon.code})` : "";
-    const finalPrice = selectedService?.price 
+    const finalPrice = service?.price 
       ? appliedCoupon 
-        ? selectedService.price * (1 - appliedCoupon.discount_percent / 100)
-        : selectedService.price
+        ? service.price * (1 - appliedCoupon.discount_percent / 100)
+        : service.price
       : null;
 
     await supabase.from("contact_messages").insert({
       name: userDetails.name,
       email: userDetails.email,
       phone: userDetails.phone,
-      subject: `Appointment: ${selectedService?.name}${discountText}`,
-      message: `Booking request for ${selectedService?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} at ${selectedTime}${appliedCoupon ? `. Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}`,
+      subject: `Appointment: ${service?.name}${discountText}`,
+      message: `Booking request for ${service?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} at ${selectedTime} (3-hour appointment)${appliedCoupon ? `. Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}`,
       source: "chatbot_booking",
     });
 
@@ -278,16 +241,16 @@ const Chatbot = () => {
     if (appliedCoupon) {
       await supabase
         .from("coupons")
-        .update({ current_uses: (appliedCoupon as any).current_uses + 1 })
+        .update({ current_uses: appliedCoupon.current_uses + 1 })
         .eq("id", appliedCoupon.id);
     }
 
     setMessages((prev) => [
       ...prev,
-      { type: "user", text: `Name: ${userDetails.name}, Email: ${userDetails.email}` },
+      { type: "user", text: `Booking: ${service?.name}` },
       {
         type: "bot",
-        text: `✅ Booking Request Submitted!\n\n📋 Service: ${selectedService?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\nWe'll confirm your appointment shortly via email/phone. Thank you!`,
+        text: `✅ Booking Request Submitted!\n\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime} (3 hours)\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\nWe'll confirm your appointment shortly via email/phone. Thank you!`,
       },
     ]);
 
@@ -297,7 +260,7 @@ const Chatbot = () => {
 
   const resetBooking = () => {
     setStep("chat");
-    setSelectedService(null);
+    setSelectedService("");
     setSelectedDate(undefined);
     setSelectedTime("");
     setUserDetails({ name: "", email: "", phone: "" });
@@ -336,7 +299,7 @@ const Chatbot = () => {
             </button>
           </div>
 
-          <div className="h-80 overflow-y-auto p-4 space-y-4 bg-muted/30">
+          <div className="h-96 overflow-y-auto p-4 space-y-4 bg-muted/30">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
                 <div
@@ -351,27 +314,7 @@ const Chatbot = () => {
               </div>
             ))}
 
-            {/* Service Selection */}
-            {step === "service" && (
-              <div className="space-y-2">
-                {services.length > 0 ? (
-                  services.map((service) => (
-                    <button
-                      key={service.id}
-                      onClick={() => handleServiceSelect(service)}
-                      className="w-full p-3 bg-card border border-border rounded-lg text-left hover:bg-muted transition-colors"
-                    >
-                      <p className="font-medium text-foreground">{service.name}</p>
-                      {service.price && <p className="text-sm text-muted-foreground">₹{service.price}</p>}
-                    </button>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-sm">No services available at the moment.</p>
-                )}
-              </div>
-            )}
-
-            {/* Date Selection */}
+            {/* Date Selection - Step 1 */}
             {step === "date" && (
               <div className="bg-card rounded-lg p-2 border border-border">
                 <CalendarComponent
@@ -379,85 +322,137 @@ const Chatbot = () => {
                   selected={selectedDate}
                   onSelect={handleDateSelect}
                   disabled={(date) => date < new Date() || date.getDay() === 0}
-                  className="rounded-md"
+                  className="rounded-md pointer-events-auto"
                 />
               </div>
             )}
 
-            {/* Time Selection */}
+            {/* Time Selection - Step 2 */}
             {step === "time" && (
-              <div className="grid grid-cols-2 gap-2">
-                {timeSlots.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => handleTimeSelect(time)}
-                    className="p-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Clock className="w-4 h-4" />
-                    <span className="text-sm">{time}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Coupon Input */}
-            {step === "coupon" && (
-              <div className="space-y-3 bg-card p-4 rounded-lg border border-border">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Enter coupon code"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="flex-1"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={skipCoupon} className="flex-1">
-                    Skip
-                  </Button>
-                  <Button onClick={handleCouponApply} disabled={validatingCoupon} className="flex-1">
-                    {validatingCoupon ? "Checking..." : "Apply"}
-                  </Button>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground text-center">Working hours: 9 AM - 8 PM (3hr slots)</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {timeSlots.map((time) => (
+                    <button
+                      key={time}
+                      onClick={() => handleTimeSelect(time)}
+                      className="p-3 bg-card border border-border rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium">{time}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* User Details Form */}
+            {/* User Details Form - Step 3 */}
             {step === "details" && (
-              <div className="space-y-3 bg-card p-4 rounded-lg border border-border">
-                {appliedCoupon && (
-                  <div className="bg-green-500/10 text-green-600 p-2 rounded-lg text-sm flex items-center gap-2">
-                    <Tag className="w-4 h-4" />
-                    {appliedCoupon.discount_percent}% discount applied!
+              <div className="space-y-4 bg-card p-4 rounded-lg border border-border">
+                {/* Booking Summary */}
+                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20">
+                  <p className="text-sm font-medium text-primary">Your Appointment</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedDate ? format(selectedDate, "EEEE, MMMM d") : ""} at {selectedTime}
+                  </p>
+                  <button 
+                    onClick={() => setStep("date")} 
+                    className="text-xs text-primary underline mt-1"
+                  >
+                    Change Time
+                  </button>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Name *</label>
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Your full name"
+                      value={userDetails.name}
+                      onChange={(e) => setUserDetails({ ...userDetails, name: e.target.value })}
+                    />
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Your Name"
-                    value={userDetails.name}
-                    onChange={(e) => setUserDetails({ ...userDetails, name: e.target.value })}
-                  />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    placeholder="Your Email"
-                    value={userDetails.email}
-                    onChange={(e) => setUserDetails({ ...userDetails, email: e.target.value })}
-                  />
+
+                {/* Email */}
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Email *</label>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="your@email.com"
+                      value={userDetails.email}
+                      onChange={(e) => setUserDetails({ ...userDetails, email: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Your Phone"
-                    value={userDetails.phone}
-                    onChange={(e) => setUserDetails({ ...userDetails, phone: e.target.value })}
-                  />
+
+                {/* Phone */}
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Phone</label>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="+91 7026292525"
+                      value={userDetails.phone}
+                      onChange={(e) => setUserDetails({ ...userDetails, phone: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <Button onClick={handleBookingSubmit} className="w-full">
+
+                {/* Service Selection */}
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Service *</label>
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-muted-foreground" />
+                    <Select value={selectedService} onValueChange={setSelectedService}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select a service" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.name} {service.price ? `- ₹${service.price}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Coupon */}
+                <div>
+                  <label className="text-sm font-medium mb-1 block flex items-center gap-1">
+                    <Tag className="w-4 h-4" /> Have a coupon?
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="ENTER CODE"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      className="flex-1"
+                      disabled={!!appliedCoupon}
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={handleApplyCoupon} 
+                      disabled={validatingCoupon || !!appliedCoupon || !couponCode.trim()}
+                      className="text-primary border-primary hover:bg-primary hover:text-primary-foreground"
+                    >
+                      {validatingCoupon ? "..." : appliedCoupon ? "Applied" : "Apply"}
+                    </Button>
+                  </div>
+                  {appliedCoupon && (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✓ {appliedCoupon.discount_percent}% discount applied!
+                    </p>
+                  )}
+                </div>
+
+                <Button onClick={handleBookingSubmit} className="w-full bg-primary hover:bg-primary/90">
                   Confirm Booking
                 </Button>
               </div>
