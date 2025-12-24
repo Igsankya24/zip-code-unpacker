@@ -44,12 +44,18 @@ const iconMap: Record<string, LucideIcon> = {
   Wifi,
 };
 
+interface SiteSettings {
+  [key: string]: string;
+}
+
 const Index = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({});
 
   useEffect(() => {
     fetchServices();
+    fetchSettings();
   }, []);
 
   const fetchServices = async () => {
@@ -64,11 +70,37 @@ const Index = () => {
     setLoading(false);
   };
 
+  const fetchSettings = async () => {
+    const { data } = await supabase
+      .from("site_settings")
+      .select("key, value");
+    
+    if (data) {
+      const settingsObj: SiteSettings = {};
+      data.forEach((s) => {
+        settingsObj[s.key] = s.value;
+      });
+      setSiteSettings(settingsObj);
+    }
+  };
+
   const stats = [
-    { value: "10K+", label: "Happy Customers" },
-    { value: "95%", label: "Recovery Rate" },
-    { value: "5+", label: "Years Experience" },
-    { value: "24/7", label: "Support Available" },
+    { 
+      value: siteSettings.stat_1_value || "10K+", 
+      label: siteSettings.stat_1_label || "Happy Customers" 
+    },
+    { 
+      value: siteSettings.stat_2_value || "95%", 
+      label: siteSettings.stat_2_label || "Recovery Rate" 
+    },
+    { 
+      value: siteSettings.stat_3_value || "5+", 
+      label: siteSettings.stat_3_label || "Years Experience" 
+    },
+    { 
+      value: siteSettings.stat_4_value || "24/7", 
+      label: siteSettings.stat_4_label || "Support Available" 
+    },
   ];
 
   const whyUs = [

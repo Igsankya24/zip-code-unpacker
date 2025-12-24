@@ -1,17 +1,24 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Monitor, Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram, Github } from "lucide-react";
+import { Monitor, Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Settings {
   [key: string]: string;
 }
 
+interface Service {
+  id: string;
+  name: string;
+}
+
 const Footer = () => {
   const [settings, setSettings] = useState<Settings>({});
+  const [services, setServices] = useState<Service[]>([]);
 
   useEffect(() => {
     fetchSettings();
+    fetchServices();
   }, []);
 
   const fetchSettings = async () => {
@@ -25,13 +32,24 @@ const Footer = () => {
     }
   };
 
+  const fetchServices = async () => {
+    const { data } = await supabase
+      .from("services")
+      .select("id, name")
+      .eq("is_visible", true)
+      .order("display_order", { ascending: true })
+      .limit(5);
+    if (data) setServices(data);
+  };
+
   const socialLinks = [
     { icon: Facebook, url: settings.facebook_link, name: "Facebook" },
     { icon: Twitter, url: settings.twitter_link, name: "Twitter" },
-    { icon: Instagram, url: "", name: "Instagram" },
+    { icon: Instagram, url: settings.instagram_link, name: "Instagram" },
     { icon: Linkedin, url: settings.linkedin_link, name: "LinkedIn" },
-    { icon: Github, url: settings.github_link, name: "GitHub" },
   ].filter(link => link.url);
+
+  const currentYear = new Date().getFullYear();
 
   return (
     <footer className="bg-hero text-hero-foreground">
@@ -43,13 +61,16 @@ const Footer = () => {
                 <Monitor className="w-5 h-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col">
-                <span className="font-display font-bold text-lg leading-tight">Krishna Tech</span>
-                <span className="text-xs text-hero-foreground/60 -mt-0.5">Solutions</span>
+                <span className="font-display font-bold text-lg leading-tight">
+                  {settings.company_name || "Krishna Tech"}
+                </span>
+                <span className="text-xs text-hero-foreground/60 -mt-0.5">
+                  {settings.company_tagline || "Solutions"}
+                </span>
               </div>
             </div>
             <p className="text-hero-foreground/70 text-sm leading-relaxed">
-              Professional tech solutions for data recovery, Windows services, and computer repairs. Your trusted IT
-              partner.
+              {settings.footer_description || "Professional tech solutions for data recovery, Windows services, and computer repairs. Your trusted IT partner."}
             </p>
           </div>
 
@@ -77,12 +98,20 @@ const Footer = () => {
           <div>
             <h4 className="font-display font-semibold text-lg mb-4">Our Services</h4>
             <ul className="space-y-3">
-              {["Data Recovery", "Windows Upgrade", "Password Recovery", "Computer Repair", "Virus Removal"].map(
-                (service) => (
-                  <li key={service}>
-                    <span className="text-hero-foreground/70">{service}</span>
+              {services.length > 0 ? (
+                services.map((service) => (
+                  <li key={service.id}>
+                    <span className="text-hero-foreground/70">{service.name}</span>
                   </li>
-                ),
+                ))
+              ) : (
+                ["Data Recovery", "Windows Upgrade", "Password Recovery", "Computer Repair", "Virus Removal"].map(
+                  (service) => (
+                    <li key={service}>
+                      <span className="text-hero-foreground/70">{service}</span>
+                    </li>
+                  )
+                )
               )}
             </ul>
           </div>
@@ -93,19 +122,19 @@ const Footer = () => {
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-primary" />
                 <span className="text-hero-foreground/70">
-                  {settings.company_phone || "+91 7026292525"}
+                  {settings.contact_phone || "+91 7026292525"}
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-primary" />
                 <span className="text-hero-foreground/70">
-                  {settings.company_email || "info@krishnatechsolutions.com"}
+                  {settings.contact_email || "info@krishnatechsolutions.com"}
                 </span>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 <span className="text-hero-foreground/70">
-                  {settings.company_address || "Belgaum, Karnataka - 590014"}
+                  {settings.contact_address || "Belgaum, Karnataka - 590014"}
                 </span>
               </li>
             </ul>
@@ -140,12 +169,20 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-hero-foreground/10 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-hero-foreground/60 text-sm">© 2024 Krishna Tech Solutions. All rights reserved.</p>
+          <p className="text-hero-foreground/60 text-sm">
+            {settings.copyright_text || `© ${currentYear} Krishna Tech Solutions. All rights reserved.`}
+          </p>
           <div className="flex gap-6">
-            <a href="#" className="text-hero-foreground/60 hover:text-primary text-sm transition-colors">
+            <a 
+              href={settings.privacy_policy_url || "#"} 
+              className="text-hero-foreground/60 hover:text-primary text-sm transition-colors"
+            >
               Privacy Policy
             </a>
-            <a href="#" className="text-hero-foreground/60 hover:text-primary text-sm transition-colors">
+            <a 
+              href={settings.terms_of_service_url || "#"} 
+              className="text-hero-foreground/60 hover:text-primary text-sm transition-colors"
+            >
               Terms of Service
             </a>
           </div>
