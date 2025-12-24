@@ -45,12 +45,8 @@ const timeSlots = [
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      type: "bot",
-      text: "Hello! 👋 Welcome to Krishna Tech Solutions. How can I help you today?",
-    },
-  ]);
+  const [welcomeMessage, setWelcomeMessage] = useState("Hello! 👋 Welcome to Krishna Tech Solutions. How can I help you today?");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [step, setStep] = useState<BookingStep>("chat");
   const [services, setServices] = useState<Service[]>([]);
@@ -66,8 +62,25 @@ const Chatbot = () => {
   const quickOptions = ["View Services", "Book Appointment", "Contact Us"];
 
   useEffect(() => {
+    fetchSettings();
     fetchServices();
   }, []);
+
+  useEffect(() => {
+    setMessages([{ type: "bot", text: welcomeMessage }]);
+  }, [welcomeMessage]);
+
+  const fetchSettings = async () => {
+    const { data } = await supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "chatbot_welcome")
+      .maybeSingle();
+    
+    if (data?.value) {
+      setWelcomeMessage(data.value);
+    }
+  };
 
   const fetchServices = async () => {
     const { data } = await supabase

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Save, ExternalLink } from "lucide-react";
+import { Save, ExternalLink, MessageCircle } from "lucide-react";
 
 interface Settings {
   [key: string]: string;
@@ -80,6 +80,77 @@ const AdminSettings = () => {
             checked={settings.maintenance_mode === "true"}
             onCheckedChange={(checked) => updateSetting("maintenance_mode", checked.toString())}
           />
+        </div>
+      </div>
+
+      {/* Chatbot Settings */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">Chatbot Settings</h3>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-foreground">Enable Chatbot</p>
+            <p className="text-sm text-muted-foreground">
+              Show chatbot widget to customers
+            </p>
+          </div>
+          <Switch
+            checked={settings.chatbot_enabled !== "false"}
+            onCheckedChange={(checked) => updateSetting("chatbot_enabled", checked.toString())}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-foreground">Show Booking Popup</p>
+            <p className="text-sm text-muted-foreground">
+              Show floating "Book Appointment" button
+            </p>
+          </div>
+          <Switch
+            checked={settings.booking_popup_enabled === "true"}
+            onCheckedChange={(checked) => updateSetting("booking_popup_enabled", checked.toString())}
+          />
+        </div>
+        
+        <div className="space-y-4 pt-4 border-t border-border">
+          <div>
+            <label className="block text-sm font-medium mb-2">Welcome Message</label>
+            <div className="flex gap-2">
+              <Textarea
+                value={settings.chatbot_welcome || ""}
+                onChange={(e) => handleInputChange("chatbot_welcome", e.target.value)}
+                placeholder="Hello! 👋 Welcome to Krishna Tech Solutions. How can I help you today?"
+                rows={2}
+              />
+              <Button 
+                onClick={() => updateSetting("chatbot_welcome", settings.chatbot_welcome || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Booking Popup Text</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.booking_popup_text || ""}
+                onChange={(e) => handleInputChange("booking_popup_text", e.target.value)}
+                placeholder="Book Appointment"
+              />
+              <Button 
+                onClick={() => updateSetting("booking_popup_text", settings.booking_popup_text || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
