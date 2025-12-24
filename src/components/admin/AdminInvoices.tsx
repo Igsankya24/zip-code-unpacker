@@ -80,7 +80,12 @@ interface SavedInvoice {
   created_at: string;
 }
 
-const AdminInvoices = () => {
+interface AdminInvoicesProps {
+  preSelectedAppointmentId?: string | null;
+  onClearSelection?: () => void;
+}
+
+const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvoicesProps) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [savedInvoices, setSavedInvoices] = useState<SavedInvoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +128,20 @@ const AdminInvoices = () => {
     fetchCompanyInfo();
     fetchSavedInvoices();
   }, []);
+
+  // Handle pre-selected appointment from external navigation
+  useEffect(() => {
+    if (preSelectedAppointmentId && appointments.length > 0) {
+      const apt = appointments.find(a => a.id === preSelectedAppointmentId);
+      if (apt) {
+        handleSelectAppointment(preSelectedAppointmentId);
+        setActiveTab("create");
+        if (onClearSelection) {
+          onClearSelection();
+        }
+      }
+    }
+  }, [preSelectedAppointmentId, appointments]);
 
   const fetchSavedInvoices = async () => {
     const { data, error } = await supabase
