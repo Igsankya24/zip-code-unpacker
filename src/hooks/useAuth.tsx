@@ -75,32 +75,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          setTimeout(() => {
-            checkAdminRole(session.user.id).then(({ isAdmin, isSuperAdmin }) => {
-              setIsAdmin(isAdmin);
-              setIsSuperAdmin(isSuperAdmin);
-            });
-            checkApprovalStatus(session.user.id).then(setIsApproved);
+          setTimeout(async () => {
+            const { isAdmin, isSuperAdmin } = await checkAdminRole(session.user.id);
+            setIsAdmin(isAdmin);
+            setIsSuperAdmin(isSuperAdmin);
+            const approved = await checkApprovalStatus(session.user.id);
+            setIsApproved(approved);
+            setIsLoading(false);
           }, 0);
         } else {
           setIsAdmin(false);
           setIsSuperAdmin(false);
           setIsApproved(false);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        checkAdminRole(session.user.id).then(({ isAdmin, isSuperAdmin }) => {
-          setIsAdmin(isAdmin);
-          setIsSuperAdmin(isSuperAdmin);
-        });
-        checkApprovalStatus(session.user.id).then(setIsApproved);
+        const { isAdmin, isSuperAdmin } = await checkAdminRole(session.user.id);
+        setIsAdmin(isAdmin);
+        setIsSuperAdmin(isSuperAdmin);
+        const approved = await checkApprovalStatus(session.user.id);
+        setIsApproved(approved);
       }
       setIsLoading(false);
     });
