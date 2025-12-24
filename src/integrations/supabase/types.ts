@@ -400,6 +400,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_access: {
+        Row: {
+          can_apply_coupons: boolean | null
+          can_book_appointments: boolean | null
+          can_contact_support: boolean | null
+          can_use_chatbot: boolean | null
+          can_view_services: boolean | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_apply_coupons?: boolean | null
+          can_book_appointments?: boolean | null
+          can_contact_support?: boolean | null
+          can_use_chatbot?: boolean | null
+          can_view_services?: boolean | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_apply_coupons?: boolean | null
+          can_book_appointments?: boolean | null
+          can_contact_support?: boolean | null
+          can_use_chatbot?: boolean | null
+          can_view_services?: boolean | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
