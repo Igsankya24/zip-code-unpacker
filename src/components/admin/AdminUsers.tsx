@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail } from "lucide-react";
+import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, FileSpreadsheet, FileText, File, Download } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
@@ -19,6 +19,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
+import { format } from "date-fns";
 
 interface UserProfile {
   id: string;
@@ -29,6 +37,7 @@ interface UserProfile {
   address: string | null;
   avatar_url: string | null;
   is_approved: boolean;
+  is_frozen: boolean;
   created_at: string;
   role?: string;
 }
@@ -76,10 +85,56 @@ const AdminUsers = () => {
     const usersWithRoles = profiles?.map((p) => ({
       ...p,
       role: rolesMap[p.user_id] || "user",
+      is_frozen: (p as any).is_frozen ?? false,
     })) || [];
 
     setUsers(usersWithRoles);
     setLoading(false);
+  };
+
+  const toggleFreeze = async (userId: string, currentFrozen: boolean) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_frozen: !currentFrozen, updated_at: new Date().toISOString() })
+      .eq("user_id", userId);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ 
+        title: "Success", 
+        description: `User account ${currentFrozen ? "unfrozen" : "frozen"}` 
+      });
+      fetchUsers();
+    }
+  };
+
+  const handleExport = (type: 'excel' | 'pdf' | 'word') => {
+    const exportData = filteredUsers.map(u => ({
+      Name: u.full_name || 'No name',
+      Email: u.email || '-',
+      Phone: u.phone || '-',
+      Role: u.role || 'user',
+      Status: u.is_approved ? 'Approved' : 'Pending',
+      Frozen: u.is_frozen ? 'Yes' : 'No',
+      Created: format(new Date(u.created_at), "MMM d, yyyy")
+    }));
+
+    const filename = `users_${format(new Date(), 'yyyy-MM-dd')}`;
+    
+    switch (type) {
+      case 'excel':
+        exportToExcel(exportData, filename);
+        break;
+      case 'pdf':
+        exportToPDF(exportData, filename, 'Users Report');
+        break;
+      case 'word':
+        exportToWord(exportData, filename, 'Users Report');
+        break;
+    }
+    
+    toast({ title: "Success", description: `Exported to ${type.toUpperCase()}` });
   };
 
   const toggleApproval = async (userId: string, currentStatus: boolean) => {
@@ -192,14 +247,38 @@ const AdminUsers = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-foreground">Users</h2>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 w-64"
-          />
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                <FileText className="w-4 h-4 mr-2" />
+                PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('word')}>
+                <File className="w-4 h-4 mr-2" />
+                Word (.doc)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 w-64"
+            />
+          </div>
         </div>
       </div>
 
@@ -254,15 +333,22 @@ const AdminUsers = () => {
                     </Select>
                   </td>
                   <td className="p-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        user.is_approved
-                          ? "bg-green-500/10 text-green-500"
-                          : "bg-yellow-500/10 text-yellow-500"
-                      }`}
-                    >
-                      {user.is_approved ? "Approved" : "Pending"}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium inline-block w-fit ${
+                          user.is_approved
+                            ? "bg-green-500/10 text-green-500"
+                            : "bg-yellow-500/10 text-yellow-500"
+                        }`}
+                      >
+                        {user.is_approved ? "Approved" : "Pending"}
+                      </span>
+                      {user.is_frozen && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 inline-block w-fit">
+                          Frozen
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -270,6 +356,7 @@ const AdminUsers = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => setEditingUser(user)}
+                        title="Edit user"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -277,11 +364,24 @@ const AdminUsers = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => toggleApproval(user.user_id, user.is_approved)}
+                        title={user.is_approved ? "Unapprove user" : "Approve user"}
                       >
                         {user.is_approved ? (
                           <UserX className="w-4 h-4 text-destructive" />
                         ) : (
                           <UserCheck className="w-4 h-4 text-green-500" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleFreeze(user.user_id, user.is_frozen)}
+                        title={user.is_frozen ? "Unfreeze account" : "Freeze account"}
+                      >
+                        {user.is_frozen ? (
+                          <Unlock className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Lock className="w-4 h-4 text-orange-500" />
                         )}
                       </Button>
                     </div>

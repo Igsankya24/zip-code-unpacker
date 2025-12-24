@@ -175,6 +175,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_approved: boolean | null
+          is_frozen: boolean | null
           phone: string | null
           updated_at: string | null
           user_id: string
@@ -187,6 +188,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_approved?: boolean | null
+          is_frozen?: boolean | null
           phone?: string | null
           updated_at?: string | null
           user_id: string
@@ -199,6 +201,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_approved?: boolean | null
+          is_frozen?: boolean | null
           phone?: string | null
           updated_at?: string | null
           user_id?: string

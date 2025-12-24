@@ -15,7 +15,8 @@ import {
   Bell,
   Check,
   MessageSquare,
-  UserCircle
+  UserCircle,
+  Bot
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -24,6 +25,7 @@ import AdminCoupons from "@/components/admin/AdminCoupons";
 import AdminAppointments from "@/components/admin/AdminAppointments";
 import AdminMessages from "@/components/admin/AdminMessages";
 import AdminProfileSettings from "@/components/admin/AdminProfileSettings";
+import AdminBot from "@/components/admin/AdminBot";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Popover,
@@ -31,7 +33,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "messages" | "settings" | "profile";
+type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile";
 
 interface DashboardStats {
   totalUsers: number;
@@ -158,6 +160,7 @@ const Admin = () => {
     { id: "messages" as AdminTab, label: "Messages", icon: MessageSquare, badge: stats.unreadMessages },
     { id: "users" as AdminTab, label: "Users", icon: Users },
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket },
+    { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot },
     { id: "profile" as AdminTab, label: "My Profile", icon: UserCircle },
     { id: "settings" as AdminTab, label: "Settings", icon: Settings },
   ];
@@ -247,6 +250,8 @@ const Admin = () => {
         return <AdminCoupons />;
       case "messages":
         return <AdminMessages />;
+      case "bot":
+        return <AdminBot />;
       case "profile":
         return <AdminProfileSettings />;
       case "settings":

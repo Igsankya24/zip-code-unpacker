@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Trash2, Calendar } from "lucide-react";
+import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select,
@@ -11,6 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 
 interface Appointment {
   id: string;
@@ -120,6 +127,35 @@ const AdminAppointments = () => {
     }
   };
 
+  const handleExport = (type: 'excel' | 'pdf' | 'word') => {
+    const exportData = filteredAppointments.map(a => ({
+      Customer: a.user_name || 'Unknown',
+      Email: a.user_email || '-',
+      Service: a.service_name || '-',
+      Date: format(new Date(a.appointment_date), "MMM d, yyyy"),
+      Time: a.appointment_time,
+      Status: a.status,
+      Notes: a.notes || '-',
+      Created: format(new Date(a.created_at), "MMM d, yyyy")
+    }));
+
+    const filename = `appointments_${format(new Date(), 'yyyy-MM-dd')}`;
+    
+    switch (type) {
+      case 'excel':
+        exportToExcel(exportData, filename);
+        break;
+      case 'pdf':
+        exportToPDF(exportData, filename, 'Appointments Report');
+        break;
+      case 'word':
+        exportToWord(exportData, filename, 'Appointments Report');
+        break;
+    }
+    
+    toast({ title: "Success", description: `Exported to ${type.toUpperCase()}` });
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading...</div>;
   }
@@ -128,18 +164,42 @@ const AdminAppointments = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-foreground">Appointments</h2>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                <FileText className="w-4 h-4 mr-2" />
+                PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('word')}>
+                <File className="w-4 h-4 mr-2" />
+                Word (.doc)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">

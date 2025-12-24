@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,9 +15,24 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const checkFrozenStatus = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("is_frozen")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error("Error checking frozen status:", error);
+      return false;
+    }
+    
+    return (data as any)?.is_frozen ?? false;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +48,22 @@ const Auth = () => {
             variant: "destructive",
           });
         } else {
+          // Check if account is frozen
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const isFrozen = await checkFrozenStatus(user.id);
+            if (isFrozen) {
+              await signOut();
+              toast({
+                title: "Account Frozen",
+                description: "Your account is not accessible. Please contact admin for assistance.",
+                variant: "destructive",
+              });
+              setIsLoading(false);
+              return;
+            }
+          }
+          
           toast({
             title: "Welcome back!",
             description: "You have successfully logged in.",
