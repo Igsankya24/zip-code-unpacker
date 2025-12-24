@@ -232,6 +232,86 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          appointment_id: string | null
+          coupon_code: string | null
+          created_at: string
+          created_by: string | null
+          customer_address: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          discount: number
+          discount_percent: number | null
+          id: string
+          invoice_number: string
+          items: Json
+          notes: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          terms: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          coupon_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          discount?: number
+          discount_percent?: number | null
+          id?: string
+          invoice_number: string
+          items?: Json
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          terms?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          coupon_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          discount?: number
+          discount_percent?: number | null
+          id?: string
+          invoice_number?: string
+          items?: Json
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          terms?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
