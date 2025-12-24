@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Monitor, Shield } from "lucide-react";
+import { Menu, X, Monitor, Shield, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -56,11 +64,50 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            {user && (
-              <Link to="/admin">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                        {user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium truncate">{user.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="w-4 h-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin" className="flex items-center gap-2 cursor-pointer">
+                        <Shield className="w-4 h-4" />
+                        Admin Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => signOut()} 
+                    className="text-destructive cursor-pointer"
+                  >
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link to="/auth">
                 <Button variant="outline" size="sm">
-                  <Shield className="w-4 h-4" />
-                  Admin
+                  <User className="w-4 h-4 mr-2" />
+                  Sign In
                 </Button>
               </Link>
             )}
@@ -97,11 +144,35 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-            {user && (
-              <Link to="/admin" onClick={() => setIsOpen(false)}>
+            {user ? (
+              <>
+                <Link to="/settings" onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" className="w-full">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </Button>
+                </Link>
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      <Shield className="w-4 h-4 mr-2" />
+                      Admin Dashboard
+                    </Button>
+                  </Link>
+                )}
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-destructive" 
+                  onClick={() => { signOut(); setIsOpen(false); }}
+                >
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <Link to="/auth" onClick={() => setIsOpen(false)}>
                 <Button variant="outline" className="w-full">
-                  <Shield className="w-4 h-4" />
-                  Admin Dashboard
+                  <User className="w-4 h-4 mr-2" />
+                  Sign In
                 </Button>
               </Link>
             )}
