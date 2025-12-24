@@ -273,23 +273,105 @@ const AdminInvoices = () => {
         <head>
           <title>Invoice ${invoice.invoiceNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-            .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-            .company-info h1 { margin: 0; color: #2563eb; }
-            .invoice-info { text-align: right; }
-            .invoice-info h2 { margin: 0 0 10px; color: #333; }
-            .customer-info { margin-bottom: 30px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th { background: #f3f4f6; padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; }
-            td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
-            .totals { text-align: right; }
-            .totals .row { margin: 8px 0; }
-            .totals .total { font-size: 1.2em; font-weight: bold; color: #2563eb; }
-            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 0.9em; color: #666; }
+            * { box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 0; margin: 0; color: #1a1a1a; background: #f5f5f5; }
+            .invoice-wrapper { max-width: 800px; margin: 20px auto; background: white; border: 3px solid #1a1a1a; border-radius: 0; }
+            .invoice-header { background: linear-gradient(135deg, #1a1a1a 0%, #333 100%); color: white; padding: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .company-info h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+            .company-info p { margin: 2px 0; font-size: 13px; opacity: 0.9; }
+            .invoice-badge { background: white; color: #1a1a1a; padding: 20px 25px; text-align: right; }
+            .invoice-badge h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2px; }
+            .invoice-badge .invoice-number { font-size: 14px; font-weight: 600; margin-top: 5px; color: #666; }
+            .invoice-badge .dates { margin-top: 12px; font-size: 12px; color: #888; }
+            .invoice-body { padding: 30px; }
+            .bill-to-section { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 25px; border-bottom: 2px solid #e5e5e5; }
+            .bill-to h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 10px; font-weight: 600; }
+            .bill-to .name { font-size: 18px; font-weight: 600; margin-bottom: 5px; }
+            .bill-to p { margin: 2px 0; font-size: 13px; color: #555; }
+            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            .items-table th { background: #f8f8f8; padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; font-weight: 600; border-top: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; }
+            .items-table th:last-child, .items-table td:last-child { text-align: right; }
+            .items-table td { padding: 16px; border-bottom: 1px solid #eee; font-size: 14px; }
+            .totals-section { display: flex; justify-content: flex-end; }
+            .totals-box { width: 280px; }
+            .totals-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #eee; }
+            .totals-row.total { border-top: 2px solid #1a1a1a; border-bottom: none; padding-top: 15px; margin-top: 5px; font-size: 20px; font-weight: 700; }
+            .footer-section { margin-top: 40px; padding-top: 25px; border-top: 2px solid #e5e5e5; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+            .footer-box h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 8px; font-weight: 600; }
+            .footer-box p { font-size: 12px; color: #555; margin: 0; line-height: 1.6; white-space: pre-line; }
+            .thank-you { text-align: center; padding: 25px; background: #f8f8f8; border-top: 2px solid #1a1a1a; font-size: 14px; font-weight: 600; color: #333; }
           </style>
         </head>
         <body>
-          ${printContent.innerHTML}
+          <div class="invoice-wrapper">
+            <div class="invoice-header">
+              <div class="company-info">
+                <h1>${companyInfo.name}</h1>
+                <p>${companyInfo.address}</p>
+                <p>${companyInfo.email}</p>
+                <p>${companyInfo.phone}</p>
+                ${companyInfo.gst ? `<p>GST: ${companyInfo.gst}</p>` : ''}
+              </div>
+              <div class="invoice-badge">
+                <h2>INVOICE</h2>
+                <div class="invoice-number">#${invoice.invoiceNumber}</div>
+                <div class="dates">
+                  <div>Date: ${format(new Date(invoice.invoiceDate), "PPP")}</div>
+                  <div>Due: ${format(new Date(invoice.dueDate), "PPP")}</div>
+                </div>
+              </div>
+            </div>
+            <div class="invoice-body">
+              <div class="bill-to-section">
+                <div class="bill-to">
+                  <h3>Bill To</h3>
+                  <div class="name">${invoice.customerName}</div>
+                  <p>${invoice.customerEmail}</p>
+                  <p>${invoice.customerPhone}</p>
+                  <p>${invoice.customerAddress}</p>
+                </div>
+              </div>
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${invoice.items.map(item => `
+                    <tr>
+                      <td>${item.description}</td>
+                      <td>${item.quantity}</td>
+                      <td>₹${item.rate.toLocaleString()}</td>
+                      <td>₹${item.amount.toLocaleString()}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              <div class="totals-section">
+                <div class="totals-box">
+                  <div class="totals-row"><span>Subtotal</span><span>₹${invoice.subtotal.toLocaleString()}</span></div>
+                  <div class="totals-row"><span>Tax (${invoice.taxRate}%)</span><span>₹${invoice.taxAmount.toLocaleString()}</span></div>
+                  ${invoice.discount > 0 ? `<div class="totals-row"><span>Discount</span><span>-₹${invoice.discount.toLocaleString()}</span></div>` : ''}
+                  <div class="totals-row total"><span>Total</span><span>₹${invoice.total.toLocaleString()}</span></div>
+                </div>
+              </div>
+              <div class="footer-section">
+                <div class="footer-box">
+                  <h4>Notes</h4>
+                  <p>${invoice.notes || 'N/A'}</p>
+                </div>
+                <div class="footer-box">
+                  <h4>Terms & Conditions</h4>
+                  <p>${invoice.terms}</p>
+                </div>
+              </div>
+            </div>
+            <div class="thank-you">Thank you for your business!</div>
+          </div>
         </body>
       </html>
     `);
@@ -494,75 +576,101 @@ const AdminInvoices = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div ref={invoiceRef} className="bg-white text-gray-900 p-6 rounded-lg">
-                {/* Header */}
-                <div className="flex justify-between mb-8">
+              <div ref={invoiceRef} className="bg-white text-gray-900 rounded-lg overflow-hidden border-[3px] border-gray-900">
+                {/* Modern Header */}
+                <div className="bg-gradient-to-r from-gray-900 to-gray-700 text-white p-6 flex justify-between items-start">
                   <div className="company-info">
-                    <h1 className="text-2xl font-bold text-primary">{companyInfo.name}</h1>
-                    <p className="text-sm text-gray-600">{companyInfo.address}</p>
-                    <p className="text-sm text-gray-600">{companyInfo.email}</p>
-                    <p className="text-sm text-gray-600">{companyInfo.phone}</p>
-                    {companyInfo.gst && <p className="text-sm text-gray-600">GST: {companyInfo.gst}</p>}
+                    <h1 className="text-2xl font-bold tracking-tight">{companyInfo.name}</h1>
+                    <p className="text-sm opacity-90 mt-1">{companyInfo.address}</p>
+                    <p className="text-sm opacity-90">{companyInfo.email}</p>
+                    <p className="text-sm opacity-90">{companyInfo.phone}</p>
+                    {companyInfo.gst && <p className="text-sm opacity-90">GST: {companyInfo.gst}</p>}
                   </div>
-                  <div className="invoice-info text-right">
-                    <h2 className="text-xl font-semibold">INVOICE</h2>
-                    <p className="text-sm">#{invoice.invoiceNumber}</p>
-                    <p className="text-sm mt-2">Date: {format(new Date(invoice.invoiceDate), "PPP")}</p>
-                    <p className="text-sm">Due: {format(new Date(invoice.dueDate), "PPP")}</p>
-                  </div>
-                </div>
-
-                {/* Customer Info */}
-                <div className="customer-info mb-6">
-                  <h3 className="font-semibold text-gray-700 mb-2">Bill To:</h3>
-                  <p className="font-medium">{invoice.customerName}</p>
-                  <p className="text-sm text-gray-600">{invoice.customerEmail}</p>
-                  <p className="text-sm text-gray-600">{invoice.customerPhone}</p>
-                  <p className="text-sm text-gray-600">{invoice.customerAddress}</p>
-                </div>
-
-                {/* Items Table */}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Rate</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoice.items.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
-                        <TableCell className="text-right">₹{item.rate.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">₹{item.amount.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                {/* Totals */}
-                <div className="totals mt-6 text-right">
-                  <div className="row">Subtotal: ₹{invoice.subtotal.toLocaleString()}</div>
-                  <div className="row">Tax ({invoice.taxRate}%): ₹{invoice.taxAmount.toLocaleString()}</div>
-                  {invoice.discount > 0 && <div className="row">Discount: -₹{invoice.discount.toLocaleString()}</div>}
-                  <div className="row total text-xl font-bold text-primary mt-2">
-                    Total: ₹{invoice.total.toLocaleString()}
+                  <div className="bg-white text-gray-900 px-5 py-4 text-right rounded-sm">
+                    <h2 className="text-xl font-extrabold tracking-widest">INVOICE</h2>
+                    <p className="text-sm font-semibold text-gray-600 mt-1">#{invoice.invoiceNumber}</p>
+                    <div className="mt-3 text-xs text-gray-500">
+                      <p>Date: {format(new Date(invoice.invoiceDate), "PPP")}</p>
+                      <p>Due: {format(new Date(invoice.dueDate), "PPP")}</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Notes & Terms */}
-                {invoice.notes && (
-                  <div className="footer mt-6">
-                    <h4 className="font-semibold text-sm">Notes:</h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">{invoice.notes}</p>
+                {/* Body */}
+                <div className="p-6">
+                  {/* Bill To Section */}
+                  <div className="mb-6 pb-5 border-b-2 border-gray-200">
+                    <h3 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Bill To</h3>
+                    <p className="text-lg font-semibold">{invoice.customerName}</p>
+                    <p className="text-sm text-gray-600">{invoice.customerEmail}</p>
+                    <p className="text-sm text-gray-600">{invoice.customerPhone}</p>
+                    <p className="text-sm text-gray-600">{invoice.customerAddress}</p>
                   </div>
-                )}
-                <div className="footer mt-4">
-                  <h4 className="font-semibold text-sm">Terms & Conditions:</h4>
-                  <p className="text-sm text-gray-600">{invoice.terms}</p>
+
+                  {/* Items Table */}
+                  <table className="w-full mb-6">
+                    <thead>
+                      <tr className="border-y-2 border-gray-900">
+                        <th className="py-3 px-4 text-left text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Description</th>
+                        <th className="py-3 px-4 text-right text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Qty</th>
+                        <th className="py-3 px-4 text-right text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Rate</th>
+                        <th className="py-3 px-4 text-right text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoice.items.map((item, index) => (
+                        <tr key={index} className="border-b border-gray-100">
+                          <td className="py-4 px-4 text-sm">{item.description}</td>
+                          <td className="py-4 px-4 text-sm text-right">{item.quantity}</td>
+                          <td className="py-4 px-4 text-sm text-right">₹{item.rate.toLocaleString()}</td>
+                          <td className="py-4 px-4 text-sm text-right font-medium">₹{item.amount.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Totals */}
+                  <div className="flex justify-end">
+                    <div className="w-72">
+                      <div className="flex justify-between py-2 text-sm border-b border-gray-100">
+                        <span className="text-gray-600">Subtotal</span>
+                        <span>₹{invoice.subtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between py-2 text-sm border-b border-gray-100">
+                        <span className="text-gray-600">Tax ({invoice.taxRate}%)</span>
+                        <span>₹{invoice.taxAmount.toLocaleString()}</span>
+                      </div>
+                      {invoice.discount > 0 && (
+                        <div className="flex justify-between py-2 text-sm border-b border-gray-100 text-green-600">
+                          <span>Discount</span>
+                          <span>-₹{invoice.discount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between py-4 mt-1 text-xl font-bold border-t-2 border-gray-900">
+                        <span>Total</span>
+                        <span>₹{invoice.total.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-8 pt-6 border-t-2 border-gray-200 grid grid-cols-2 gap-6">
+                    {invoice.notes && (
+                      <div>
+                        <h4 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Notes</h4>
+                        <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">{invoice.notes}</p>
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Terms & Conditions</h4>
+                      <p className="text-xs text-gray-600 leading-relaxed">{invoice.terms}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Thank You */}
+                <div className="bg-gray-50 border-t-2 border-gray-900 py-4 text-center">
+                  <p className="text-sm font-semibold text-gray-700">Thank you for your business!</p>
                 </div>
               </div>
             </CardContent>
