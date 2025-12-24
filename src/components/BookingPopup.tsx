@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, X, Clock, User, Mail, Phone, Tag, Briefcase } from "lucide-react";
+import { Calendar, Clock, User, Mail, Phone, Tag, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -33,10 +33,25 @@ interface Coupon {
   current_uses: number;
 }
 
+interface BookingPopupProps {
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  preSelectedServiceId?: string | null;
+}
+
 const timeSlots = ["09:00 AM", "12:00 PM", "02:00 PM", "05:00 PM"];
 
-const BookingPopup = () => {
-  const [isOpen, setIsOpen] = useState(false);
+// Convert 12hr format to 24hr for database comparison
+const convertTo24Hr = (time12: string): string => {
+  const [time, modifier] = time12.split(" ");
+  let [hours, minutes] = time.split(":");
+  if (hours === "12") hours = "00";
+  if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+  return `${hours.padStart(2, "0")}:${minutes}:00`;
+};
+
+const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedServiceId }: BookingPopupProps) => {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [buttonText, setButtonText] = useState("Book Appointment");
   const [step, setStep] = useState<"date" | "time" | "details">("date");
@@ -49,12 +64,34 @@ const BookingPopup = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const { toast } = useToast();
+
+  // Handle controlled vs uncontrolled state
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const setIsOpen = onOpenChange || setInternalIsOpen;
 
   useEffect(() => {
     fetchSettings();
     fetchServices();
   }, []);
+
+  // Handle pre-selected service
+  useEffect(() => {
+    if (preSelectedServiceId && services.length > 0) {
+      const service = services.find(s => s.id === preSelectedServiceId);
+      if (service) {
+        setSelectedService(preSelectedServiceId);
+      }
+    }
+  }, [preSelectedServiceId, services]);
+
+  // Fetch booked slots when date is selected
+  useEffect(() => {
+    if (selectedDate) {
+      fetchBookedSlots(selectedDate);
+    }
+  }, [selectedDate]);
 
   const fetchSettings = async () => {
     const { data } = await supabase
@@ -78,6 +115,30 @@ const BookingPopup = () => {
       .eq("is_active", true)
       .order("display_order", { ascending: true });
     if (data) setServices(data);
+  };
+
+  const fetchBookedSlots = async (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const { data } = await supabase
+      .from("appointments")
+      .select("appointment_time")
+      .eq("appointment_date", dateStr)
+      .in("status", ["pending", "confirmed"]);
+
+    if (data) {
+      // Convert booked times to 12hr format for comparison
+      const booked = data.map(apt => {
+        const time24 = apt.appointment_time;
+        const [hours, minutes] = time24.split(":");
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? "PM" : "AM";
+        const hour12 = hour % 12 || 12;
+        return `${hour12.toString().padStart(2, "0")}:${minutes} ${ampm}`;
+      });
+      setBookedSlots(booked);
+    } else {
+      setBookedSlots([]);
+    }
   };
 
   const validateCoupon = async () => {
@@ -111,6 +172,7 @@ const BookingPopup = () => {
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
     setSelectedDate(date);
+    setSelectedTime(""); // Reset time when date changes
     setStep("time");
   };
 
@@ -120,6 +182,15 @@ const BookingPopup = () => {
   };
 
   const getSelectedServiceData = () => services.find(s => s.id === selectedService);
+
+  const isSlotBooked = (time: string): boolean => {
+    // Normalize time format for comparison
+    const normalizedTime = time.replace(/^0/, "");
+    return bookedSlots.some(booked => {
+      const normalizedBooked = booked.replace(/^0/, "");
+      return normalizedBooked === normalizedTime || booked === time;
+    });
+  };
 
   const handleSubmit = async () => {
     if (!userDetails.name || !userDetails.email || !userDetails.phone || !selectedService) {
@@ -165,23 +236,30 @@ const BookingPopup = () => {
     setUserDetails({ name: "", email: "", phone: "" });
     setCouponCode("");
     setAppliedCoupon(null);
+    setBookedSlots([]);
   };
 
-  if (!enabled) return null;
+  // Only show floating button if enabled and not externally controlled
+  const showFloatingButton = enabled && externalIsOpen === undefined;
 
   return (
     <>
-      {/* Floating Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 left-6 z-50 px-4 py-3 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center gap-2 hover:scale-105 transition-all duration-300"
-      >
-        <Calendar className="w-5 h-5" />
-        <span className="font-medium">{buttonText}</span>
-      </button>
+      {/* Floating Button - only show if not externally controlled */}
+      {showFloatingButton && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 left-6 z-50 px-4 py-3 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center gap-2 hover:scale-105 transition-all duration-300"
+        >
+          <Calendar className="w-5 h-5" />
+          <span className="font-medium">{buttonText}</span>
+        </button>
+      )}
 
       {/* Booking Dialog */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open) resetForm();
+      }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -213,17 +291,29 @@ const BookingPopup = () => {
               </div>
               <p className="text-sm text-muted-foreground">Select a time slot (3-hour appointments):</p>
               <div className="grid grid-cols-2 gap-2">
-                {timeSlots.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => handleTimeSelect(time)}
-                    className="p-3 bg-card border border-border rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Clock className="w-4 h-4" />
-                    <span>{time}</span>
-                  </button>
-                ))}
+                {timeSlots.map((time) => {
+                  const booked = isSlotBooked(time);
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => !booked && handleTimeSelect(time)}
+                      disabled={booked}
+                      className={`p-3 border rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                        booked
+                          ? "bg-muted text-muted-foreground border-border cursor-not-allowed opacity-50"
+                          : "bg-card border-border hover:bg-primary hover:text-primary-foreground"
+                      }`}
+                    >
+                      <Clock className="w-4 h-4" />
+                      <span>{time}</span>
+                      {booked && <span className="text-xs">(Booked)</span>}
+                    </button>
+                  );
+                })}
               </div>
+              {bookedSlots.length === timeSlots.length && (
+                <p className="text-sm text-destructive text-center">All slots are booked for this date. Please select another date.</p>
+              )}
             </div>
           )}
 
