@@ -349,6 +349,238 @@ const AdminSettings = () => {
               </Button>
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Copyright Text</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.copyright_text || ""}
+                onChange={(e) => handleInputChange("copyright_text", e.target.value)}
+                placeholder="© 2024 Krishna Tech Solutions. All rights reserved."
+              />
+              <Button 
+                onClick={() => updateSetting("copyright_text", settings.copyright_text || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Homepage Stats */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Homepage Statistics</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 1 Value</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_1_value || ""}
+                onChange={(e) => handleInputChange("stat_1_value", e.target.value)}
+                placeholder="10K+"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_1_value", settings.stat_1_value || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 1 Label</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_1_label || ""}
+                onChange={(e) => handleInputChange("stat_1_label", e.target.value)}
+                placeholder="Happy Customers"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_1_label", settings.stat_1_label || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 2 Value</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_2_value || ""}
+                onChange={(e) => handleInputChange("stat_2_value", e.target.value)}
+                placeholder="95%"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_2_value", settings.stat_2_value || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 2 Label</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_2_label || ""}
+                onChange={(e) => handleInputChange("stat_2_label", e.target.value)}
+                placeholder="Recovery Rate"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_2_label", settings.stat_2_label || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 3 Value</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_3_value || ""}
+                onChange={(e) => handleInputChange("stat_3_value", e.target.value)}
+                placeholder="5+"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_3_value", settings.stat_3_value || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 3 Label</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_3_label || ""}
+                onChange={(e) => handleInputChange("stat_3_label", e.target.value)}
+                placeholder="Years Experience"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_3_label", settings.stat_3_label || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 4 Value</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_4_value || ""}
+                onChange={(e) => handleInputChange("stat_4_value", e.target.value)}
+                placeholder="24/7"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_4_value", settings.stat_4_value || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Stat 4 Label</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.stat_4_label || ""}
+                onChange={(e) => handleInputChange("stat_4_label", e.target.value)}
+                placeholder="Support Available"
+              />
+              <Button 
+                onClick={() => updateSetting("stat_4_label", settings.stat_4_label || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Content */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Footer Content</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Footer Description</label>
+            <div className="flex gap-2">
+              <Textarea
+                value={settings.footer_description || ""}
+                onChange={(e) => handleInputChange("footer_description", e.target.value)}
+                placeholder="Professional tech solutions for data recovery..."
+                rows={2}
+              />
+              <Button 
+                onClick={() => updateSetting("footer_description", settings.footer_description || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Privacy Policy URL</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.privacy_policy_url || ""}
+                onChange={(e) => handleInputChange("privacy_policy_url", e.target.value)}
+                placeholder="/privacy-policy or https://..."
+              />
+              <Button 
+                onClick={() => updateSetting("privacy_policy_url", settings.privacy_policy_url || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Terms of Service URL</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.terms_of_service_url || ""}
+                onChange={(e) => handleInputChange("terms_of_service_url", e.target.value)}
+                placeholder="/terms-of-service or https://..."
+              />
+              <Button 
+                onClick={() => updateSetting("terms_of_service_url", settings.terms_of_service_url || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Instagram Link</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.instagram_link || ""}
+                onChange={(e) => handleInputChange("instagram_link", e.target.value)}
+                placeholder="https://instagram.com/your-page"
+              />
+              <Button 
+                onClick={() => updateSetting("instagram_link", settings.instagram_link || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
