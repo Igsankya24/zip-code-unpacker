@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Monitor, Shield, Settings, User } from "lucide-react";
+import { Menu, X, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -80,13 +80,6 @@ const Navbar = () => {
                     <p className="text-sm font-medium truncate">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
-                      <Settings className="w-4 h-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={() => signOut()} 
                     className="text-destructive cursor-pointer"
@@ -130,21 +123,13 @@ const Navbar = () => {
               </Link>
             ))}
             {user && (
-              <>
-                <Link to="/settings" onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </Button>
-                </Link>
-                <Button 
-                  variant="ghost" 
-                  className="w-full text-destructive" 
-                  onClick={() => { signOut(); setIsOpen(false); }}
-                >
-                  Sign Out
-                </Button>
-              </>
+              <Button 
+                variant="ghost" 
+                className="w-full text-destructive" 
+                onClick={() => { signOut(); setIsOpen(false); }}
+              >
+                Sign Out
+              </Button>
             )}
             <Link to="/contact" onClick={() => setIsOpen(false)}>
               <Button variant="hero" className="w-full mt-2">
