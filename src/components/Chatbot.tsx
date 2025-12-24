@@ -244,7 +244,7 @@ const Chatbot = () => {
           ...prev,
           {
             type: "bot",
-            text: `Here are our services:\n\n${serviceList}\n\nWould you like to book an appointment?`,
+            text: `Here are our services:\n\n${serviceList}\n\n💡 You can apply discount coupons during booking!\n\nWould you like to book an appointment?`,
           },
         ]);
       }, 500);
@@ -285,7 +285,7 @@ const Chatbot = () => {
         const serviceList = services.map(s => `• ${s.name} - ₹${s.price || 'Contact for price'}`).join('\n');
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: `Here are our services:\n\n${serviceList}\n\nWould you like to book an appointment?` },
+          { type: "bot", text: `Here are our services:\n\n${serviceList}\n\n💡 You can apply discount coupons during booking!\n\nWould you like to book an appointment?` },
         ]);
       } else if (option === "Track Appointment") {
         setMessages((prev) => [
@@ -609,7 +609,7 @@ const Chatbot = () => {
                   </div>
                 </div>
 
-                {/* Service Selection */}
+                {/* Service Selection with Price */}
                 <div>
                   <label className="text-sm font-medium mb-1 block">Service *</label>
                   <div className="flex items-center gap-2">
@@ -627,6 +627,31 @@ const Chatbot = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  {/* Show selected service price */}
+                  {selectedService && getSelectedServiceData()?.price && (
+                    <div className="mt-2 p-2 bg-muted/50 rounded-lg">
+                      <div className="flex justify-between text-sm">
+                        <span>Service Price:</span>
+                        <span className={appliedCoupon ? "line-through text-muted-foreground" : "font-medium"}>
+                          ₹{getSelectedServiceData()?.price}
+                        </span>
+                      </div>
+                      {appliedCoupon && (
+                        <>
+                          <div className="flex justify-between text-sm text-green-600">
+                            <span>Discount ({appliedCoupon.discount_percent}%):</span>
+                            <span>-₹{((getSelectedServiceData()?.price || 0) * appliedCoupon.discount_percent / 100).toFixed(0)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm font-bold mt-1 pt-1 border-t border-border">
+                            <span>Final Price:</span>
+                            <span className="text-primary">
+                              ₹{((getSelectedServiceData()?.price || 0) * (1 - appliedCoupon.discount_percent / 100)).toFixed(0)}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Coupon */}

@@ -170,24 +170,50 @@ const AdminInvoices = () => {
     return `${prefix}-${date}-${random}`;
   };
 
+  // Parse discount from appointment notes
+  const parseDiscountFromNotes = (notes: string | null): { discountPercent: number; couponCode: string | null } => {
+    if (!notes) return { discountPercent: 0, couponCode: null };
+    
+    // Match pattern like "Coupon: CODE (XX% off)"
+    const couponMatch = notes.match(/Coupon:\s*(\w+)\s*\((\d+)%\s*off\)/i);
+    if (couponMatch) {
+      return { discountPercent: parseInt(couponMatch[2]), couponCode: couponMatch[1] };
+    }
+    
+    // Match pattern like "XX% discount"
+    const discountMatch = notes.match(/(\d+)%\s*discount/i);
+    if (discountMatch) {
+      return { discountPercent: parseInt(discountMatch[1]), couponCode: null };
+    }
+    
+    return { discountPercent: 0, couponCode: null };
+  };
+
   const handleSelectAppointment = (appointmentId: string) => {
     setSelectedAppointment(appointmentId);
     const apt = appointments.find((a) => a.id === appointmentId);
     if (apt) {
+      const servicePrice = apt.service?.price || 0;
+      const { discountPercent, couponCode } = parseDiscountFromNotes(apt.notes);
+      
+      // Calculate discounted price
+      const discountAmount = (servicePrice * discountPercent) / 100;
+      const finalServicePrice = servicePrice - discountAmount;
+      
       const items: InvoiceItem[] = apt.service
         ? [
             {
-              description: apt.service.name,
+              description: apt.service.name + (discountPercent > 0 ? ` (${discountPercent}% discount${couponCode ? ` - ${couponCode}` : ''})` : ''),
               quantity: 1,
-              rate: apt.service.price || 0,
-              amount: apt.service.price || 0,
+              rate: finalServicePrice,
+              amount: finalServicePrice,
             },
           ]
         : [];
 
       const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
       const taxAmount = (subtotal * invoice.taxRate) / 100;
-      const total = subtotal + taxAmount - invoice.discount;
+      const total = subtotal + taxAmount;
 
       setInvoice({
         ...invoice,
@@ -199,8 +225,9 @@ const AdminInvoices = () => {
         items,
         subtotal,
         taxAmount,
+        discount: 0, // Discount already applied to service price
         total,
-        notes: `Appointment Reference: ${apt.reference_id || apt.id}\nDate: ${format(new Date(apt.appointment_date), "PPP")}\nTime: ${apt.appointment_time}`,
+        notes: `Appointment Reference: ${apt.reference_id || apt.id}\nDate: ${format(new Date(apt.appointment_date), "PPP")}\nTime: ${apt.appointment_time}${discountPercent > 0 ? `\nDiscount Applied: ${discountPercent}%${couponCode ? ` (Code: ${couponCode})` : ''}` : ''}`,
       });
     }
   };
