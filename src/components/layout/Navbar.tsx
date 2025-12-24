@@ -64,7 +64,7 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            {user ? (
+            {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="flex items-center gap-2">
@@ -86,14 +86,6 @@ const Navbar = () => {
                       Settings
                     </Link>
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin" className="flex items-center gap-2 cursor-pointer">
-                        <Shield className="w-4 h-4" />
-                        Admin Panel
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={() => signOut()} 
@@ -103,13 +95,6 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <Link to="/auth">
-                <Button variant="outline" size="sm">
-                  <User className="w-4 h-4 mr-2" />
-                  Sign In
-                </Button>
-              </Link>
             )}
             <Link to="/contact">
               <Button variant="hero" size="default">
@@ -144,7 +129,7 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-            {user ? (
+            {user && (
               <>
                 <Link to="/settings" onClick={() => setIsOpen(false)}>
                   <Button variant="outline" className="w-full">
@@ -152,14 +137,6 @@ const Navbar = () => {
                     Settings
                   </Button>
                 </Link>
-                {isAdmin && (
-                  <Link to="/admin" onClick={() => setIsOpen(false)}>
-                    <Button variant="outline" className="w-full">
-                      <Shield className="w-4 h-4 mr-2" />
-                      Admin Dashboard
-                    </Button>
-                  </Link>
-                )}
                 <Button 
                   variant="ghost" 
                   className="w-full text-destructive" 
@@ -168,13 +145,6 @@ const Navbar = () => {
                   Sign Out
                 </Button>
               </>
-            ) : (
-              <Link to="/auth" onClick={() => setIsOpen(false)}>
-                <Button variant="outline" className="w-full">
-                  <User className="w-4 h-4 mr-2" />
-                  Sign In
-                </Button>
-              </Link>
             )}
             <Link to="/contact" onClick={() => setIsOpen(false)}>
               <Button variant="hero" className="w-full mt-2">
