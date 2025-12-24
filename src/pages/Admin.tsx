@@ -18,7 +18,9 @@ import {
   UserCircle,
   Bot,
   Shield,
-  Trash2
+  Trash2,
+  Paintbrush,
+  UserCog
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -30,6 +32,8 @@ import AdminProfileSettings from "@/components/admin/AdminProfileSettings";
 import AdminBot from "@/components/admin/AdminBot";
 import AdminPermissions from "@/components/admin/AdminPermissions";
 import AdminDeletionRequests from "@/components/admin/AdminDeletionRequests";
+import AdminCustomization from "@/components/admin/AdminCustomization";
+import AdminUserPermissions from "@/components/admin/AdminUserPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Popover,
@@ -37,7 +41,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests";
+type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions";
 
 interface DashboardStats {
   totalUsers: number;
@@ -133,15 +137,23 @@ const Admin = () => {
   };
 
   const markAsRead = async (id: string) => {
+    // Optimistically update UI first
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    
+    // Then update database
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    fetchNotifications();
   };
 
   const markAllAsRead = async () => {
     const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
     if (unreadIds.length > 0) {
+      // Optimistically update UI first
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+      
+      // Then update database
       await supabase.from("notifications").update({ is_read: true }).in("id", unreadIds);
-      fetchNotifications();
     }
   };
 
@@ -174,7 +186,9 @@ const Admin = () => {
     { id: "users" as AdminTab, label: "Users", icon: Users, visible: permissions.can_view_users },
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket, visible: permissions.can_view_coupons },
     { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot, visible: permissions.can_view_settings },
-    { id: "permissions" as AdminTab, label: "Permissions", icon: Shield, visible: isSuperAdmin },
+    { id: "customization" as AdminTab, label: "Customization", icon: Paintbrush, visible: isSuperAdmin },
+    { id: "user-permissions" as AdminTab, label: "User Roles", icon: UserCog, visible: isSuperAdmin },
+    { id: "permissions" as AdminTab, label: "Admin Permissions", icon: Shield, visible: isSuperAdmin },
     { id: "deletion-requests" as AdminTab, label: "Deletion Requests", icon: Trash2, badge: stats.pendingDeletionRequests, visible: isSuperAdmin },
     { id: "profile" as AdminTab, label: "My Profile", icon: UserCircle, visible: true },
     { id: "settings" as AdminTab, label: "Settings", icon: Settings, visible: permissions.can_view_settings },
@@ -298,6 +312,10 @@ const Admin = () => {
         return isSuperAdmin ? <AdminPermissions /> : null;
       case "deletion-requests":
         return isSuperAdmin ? <AdminDeletionRequests /> : null;
+      case "customization":
+        return isSuperAdmin ? <AdminCustomization /> : null;
+      case "user-permissions":
+        return isSuperAdmin ? <AdminUserPermissions /> : null;
       case "profile":
         return <AdminProfileSettings />;
       case "settings":
