@@ -279,6 +279,75 @@ const AdminBot = () => {
           </div>
         </div>
       </div>
+
+      {/* WhatsApp Fallback */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">WhatsApp Fallback</h3>
+        <p className="text-sm text-muted-foreground">When the bot cannot help, show WhatsApp contact option</p>
+        
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-foreground">Enable WhatsApp Fallback</p>
+            <p className="text-sm text-muted-foreground">
+              Show "Contact on WhatsApp" when bot can't solve the issue
+            </p>
+          </div>
+          <Switch
+            checked={settings.bot_whatsapp_fallback === "true"}
+            onCheckedChange={(checked) => updateSetting("bot_whatsapp_fallback", checked.toString())}
+          />
+        </div>
+
+        <div className="space-y-4 pt-4 border-t border-border">
+          <div>
+            <label className="block text-sm font-medium mb-2">WhatsApp Number</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.bot_whatsapp_number || ""}
+                onChange={(e) => handleInputChange("bot_whatsapp_number", e.target.value)}
+                placeholder="+91 7026292525"
+              />
+              <Button 
+                onClick={() => updateSetting("bot_whatsapp_number", settings.bot_whatsapp_number || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">WhatsApp Message Template</label>
+            <div className="flex gap-2">
+              <Textarea
+                value={settings.bot_whatsapp_message || ""}
+                onChange={(e) => handleInputChange("bot_whatsapp_message", e.target.value)}
+                placeholder="Hi! I need help with..."
+                rows={2}
+              />
+              <Button 
+                onClick={() => updateSetting("bot_whatsapp_message", settings.bot_whatsapp_message || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-foreground">Show Services in Fallback</p>
+              <p className="text-sm text-muted-foreground">
+                Display available services when bot can't help
+              </p>
+            </div>
+            <Switch
+              checked={settings.bot_show_services_fallback === "true"}
+              onCheckedChange={(checked) => updateSetting("bot_show_services_fallback", checked.toString())}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
