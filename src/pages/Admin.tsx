@@ -11,11 +11,21 @@ import {
   Briefcase,
   Ticket,
   Menu,
-  X
+  X,
+  Bell,
+  Check
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
+import AdminUsers from "@/components/admin/AdminUsers";
+import AdminCoupons from "@/components/admin/AdminCoupons";
+import AdminAppointments from "@/components/admin/AdminAppointments";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "settings";
 
@@ -23,12 +33,33 @@ interface DashboardStats {
   totalUsers: number;
   totalServices: number;
   activeServices: number;
+  totalAppointments: number;
+  pendingAppointments: number;
+  totalCoupons: number;
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [stats, setStats] = useState<DashboardStats>({ totalUsers: 0, totalServices: 0, activeServices: 0 });
+  const [stats, setStats] = useState<DashboardStats>({ 
+    totalUsers: 0, 
+    totalServices: 0, 
+    activeServices: 0,
+    totalAppointments: 0,
+    pendingAppointments: 0,
+    totalCoupons: 0,
+  });
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user, isAdmin, isLoading, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -47,20 +78,49 @@ const Admin = () => {
   useEffect(() => {
     if (isAdmin) {
       fetchStats();
+      fetchNotifications();
     }
   }, [isAdmin]);
 
   const fetchStats = async () => {
-    const [usersRes, servicesRes] = await Promise.all([
+    const [usersRes, servicesRes, appointmentsRes, couponsRes] = await Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
       supabase.from("services").select("id, is_visible"),
+      supabase.from("appointments").select("id, status"),
+      supabase.from("coupons").select("id", { count: "exact", head: true }),
     ]);
 
     setStats({
       totalUsers: usersRes.count || 0,
       totalServices: servicesRes.data?.length || 0,
       activeServices: servicesRes.data?.filter(s => s.is_visible).length || 0,
+      totalAppointments: appointmentsRes.data?.length || 0,
+      pendingAppointments: appointmentsRes.data?.filter(a => a.status === "pending").length || 0,
+      totalCoupons: couponsRes.count || 0,
     });
+  };
+
+  const fetchNotifications = async () => {
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (data) {
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.is_read).length);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    fetchNotifications();
+  };
+
+  const markAllAsRead = async () => {
+    await supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
+    fetchNotifications();
   };
 
   if (isLoading) {
@@ -98,22 +158,58 @@ const Admin = () => {
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Dashboard</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-card rounded-xl p-6 border border-border">
-                <h3 className="text-muted-foreground text-sm mb-2">Total Appointments</h3>
-                <p className="text-3xl font-bold text-foreground">0</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div 
+                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                onClick={() => setActiveTab("users")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-muted-foreground text-sm mb-2">Total Users</h3>
+                    <p className="text-3xl font-bold text-foreground">{stats.totalUsers}</p>
+                  </div>
+                  <Users className="w-10 h-10 text-primary/50" />
+                </div>
               </div>
-              <div className="bg-card rounded-xl p-6 border border-border">
-                <h3 className="text-muted-foreground text-sm mb-2">Total Users</h3>
-                <p className="text-3xl font-bold text-foreground">{stats.totalUsers}</p>
+              <div 
+                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                onClick={() => setActiveTab("services")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-muted-foreground text-sm mb-2">Services</h3>
+                    <p className="text-3xl font-bold text-foreground">{stats.activeServices}/{stats.totalServices}</p>
+                    <p className="text-xs text-muted-foreground">visible / total</p>
+                  </div>
+                  <Briefcase className="w-10 h-10 text-primary/50" />
+                </div>
               </div>
-              <div className="bg-card rounded-xl p-6 border border-border">
-                <h3 className="text-muted-foreground text-sm mb-2">Total Services</h3>
-                <p className="text-3xl font-bold text-foreground">{stats.totalServices}</p>
+              <div 
+                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                onClick={() => setActiveTab("appointments")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-muted-foreground text-sm mb-2">Appointments</h3>
+                    <p className="text-3xl font-bold text-foreground">{stats.totalAppointments}</p>
+                    {stats.pendingAppointments > 0 && (
+                      <p className="text-xs text-yellow-500">{stats.pendingAppointments} pending</p>
+                    )}
+                  </div>
+                  <Calendar className="w-10 h-10 text-primary/50" />
+                </div>
               </div>
-              <div className="bg-card rounded-xl p-6 border border-border">
-                <h3 className="text-muted-foreground text-sm mb-2">Visible Services</h3>
-                <p className="text-3xl font-bold text-foreground">{stats.activeServices}</p>
+              <div 
+                className="bg-card rounded-xl p-6 border border-border cursor-pointer hover:border-primary transition-colors"
+                onClick={() => setActiveTab("coupons")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-muted-foreground text-sm mb-2">Coupons</h3>
+                    <p className="text-3xl font-bold text-foreground">{stats.totalCoupons}</p>
+                  </div>
+                  <Ticket className="w-10 h-10 text-primary/50" />
+                </div>
               </div>
             </div>
           </div>
@@ -121,26 +217,11 @@ const Admin = () => {
       case "services":
         return <AdminServices />;
       case "appointments":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Appointments</h2>
-            <p className="text-muted-foreground">Manage customer appointments here.</p>
-          </div>
-        );
+        return <AdminAppointments />;
       case "users":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Users</h2>
-            <p className="text-muted-foreground">Manage user accounts and roles.</p>
-          </div>
-        );
+        return <AdminUsers />;
       case "coupons":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Coupons</h2>
-            <p className="text-muted-foreground">Manage discount coupons.</p>
-          </div>
-        );
+        return <AdminCoupons />;
       case "settings":
         return <AdminSettings />;
       default:
@@ -216,9 +297,58 @@ const Admin = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 p-6 lg:p-8 pt-16 lg:pt-8">
-        {renderContent()}
-      </main>
+      <div className="flex-1 flex flex-col">
+        {/* Top Bar with Notifications */}
+        <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-end gap-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h4 className="font-semibold">Notifications</h4>
+                {unreadCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+                    <Check className="w-4 h-4 mr-1" /> Mark all read
+                  </Button>
+                )}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length > 0 ? (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 ${
+                        !notification.is_read ? "bg-primary/5" : ""
+                      }`}
+                      onClick={() => markAsRead(notification.id)}
+                    >
+                      <p className="font-medium text-sm">{notification.title}</p>
+                      <p className="text-muted-foreground text-xs mt-1">{notification.message}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground">
+                    No notifications
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 p-6 lg:p-8 pt-16 lg:pt-8">
+          {renderContent()}
+        </main>
+      </div>
     </div>
   );
 };
