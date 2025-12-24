@@ -1,7 +1,38 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Monitor, Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
+import { Monitor, Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram, Github } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Settings {
+  [key: string]: string;
+}
 
 const Footer = () => {
+  const [settings, setSettings] = useState<Settings>({});
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("site_settings").select("key, value");
+    if (data) {
+      const settingsObj: Settings = {};
+      data.forEach((s) => {
+        settingsObj[s.key] = s.value;
+      });
+      setSettings(settingsObj);
+    }
+  };
+
+  const socialLinks = [
+    { icon: Facebook, url: settings.facebook_link, name: "Facebook" },
+    { icon: Twitter, url: settings.twitter_link, name: "Twitter" },
+    { icon: Instagram, url: "", name: "Instagram" },
+    { icon: Linkedin, url: settings.linkedin_link, name: "LinkedIn" },
+    { icon: Github, url: settings.github_link, name: "GitHub" },
+  ].filter(link => link.url);
+
   return (
     <footer className="bg-hero text-hero-foreground">
       <div className="container mx-auto px-4 py-16">
@@ -61,28 +92,49 @@ const Footer = () => {
             <ul className="space-y-4">
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-primary" />
-                <span className="text-hero-foreground/70">+91 7026292525</span>
+                <span className="text-hero-foreground/70">
+                  {settings.company_phone || "+91 7026292525"}
+                </span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-primary" />
-                <span className="text-hero-foreground/70">info@krishnatechsolutions.com</span>
+                <span className="text-hero-foreground/70">
+                  {settings.company_email || "info@krishnatechsolutions.com"}
+                </span>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <span className="text-hero-foreground/70">Belgaum, Karnataka - 590014</span>
+                <span className="text-hero-foreground/70">
+                  {settings.company_address || "Belgaum, Karnataka - 590014"}
+                </span>
               </li>
             </ul>
 
             <div className="flex gap-4 mt-6">
-              {[Facebook, Twitter, Instagram, Linkedin].map((Icon, index) => (
-                <a
-                  key={index}
-                  href="#"
-                  className="w-10 h-10 rounded-lg bg-hero-foreground/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all duration-300"
-                >
-                  <Icon className="w-5 h-5" />
-                </a>
-              ))}
+              {socialLinks.length > 0 ? (
+                socialLinks.map((social, index) => (
+                  <a
+                    key={index}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-lg bg-hero-foreground/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+                    aria-label={social.name}
+                  >
+                    <social.icon className="w-5 h-5" />
+                  </a>
+                ))
+              ) : (
+                [Facebook, Twitter, Instagram, Linkedin].map((Icon, index) => (
+                  <a
+                    key={index}
+                    href="#"
+                    className="w-10 h-10 rounded-lg bg-hero-foreground/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+                  >
+                    <Icon className="w-5 h-5" />
+                  </a>
+                ))
+              )}
             </div>
           </div>
         </div>

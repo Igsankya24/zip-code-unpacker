@@ -13,12 +13,22 @@ import {
   Menu,
   X
 } from "lucide-react";
+import AdminServices from "@/components/admin/AdminServices";
+import AdminSettings from "@/components/admin/AdminSettings";
+import { supabase } from "@/integrations/supabase/client";
 
 type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "settings";
+
+interface DashboardStats {
+  totalUsers: number;
+  totalServices: number;
+  activeServices: number;
+}
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [stats, setStats] = useState<DashboardStats>({ totalUsers: 0, totalServices: 0, activeServices: 0 });
   const { user, isAdmin, isLoading, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -33,6 +43,25 @@ const Admin = () => {
       navigate("/");
     }
   }, [isAdmin, isLoading, user, navigate]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchStats();
+    }
+  }, [isAdmin]);
+
+  const fetchStats = async () => {
+    const [usersRes, servicesRes] = await Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("services").select("id, is_visible"),
+    ]);
+
+    setStats({
+      totalUsers: usersRes.count || 0,
+      totalServices: servicesRes.data?.length || 0,
+      activeServices: servicesRes.data?.filter(s => s.is_visible).length || 0,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -56,9 +85,9 @@ const Admin = () => {
 
   const tabs = [
     { id: "dashboard" as AdminTab, label: "Dashboard", icon: LayoutDashboard },
+    { id: "services" as AdminTab, label: "Services", icon: Briefcase },
     { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar },
     { id: "users" as AdminTab, label: "Users", icon: Users },
-    { id: "services" as AdminTab, label: "Services", icon: Briefcase },
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket },
     { id: "settings" as AdminTab, label: "Settings", icon: Settings },
   ];
@@ -76,19 +105,21 @@ const Admin = () => {
               </div>
               <div className="bg-card rounded-xl p-6 border border-border">
                 <h3 className="text-muted-foreground text-sm mb-2">Total Users</h3>
-                <p className="text-3xl font-bold text-foreground">0</p>
+                <p className="text-3xl font-bold text-foreground">{stats.totalUsers}</p>
               </div>
               <div className="bg-card rounded-xl p-6 border border-border">
-                <h3 className="text-muted-foreground text-sm mb-2">Active Services</h3>
-                <p className="text-3xl font-bold text-foreground">0</p>
+                <h3 className="text-muted-foreground text-sm mb-2">Total Services</h3>
+                <p className="text-3xl font-bold text-foreground">{stats.totalServices}</p>
               </div>
               <div className="bg-card rounded-xl p-6 border border-border">
-                <h3 className="text-muted-foreground text-sm mb-2">Active Coupons</h3>
-                <p className="text-3xl font-bold text-foreground">0</p>
+                <h3 className="text-muted-foreground text-sm mb-2">Visible Services</h3>
+                <p className="text-3xl font-bold text-foreground">{stats.activeServices}</p>
               </div>
             </div>
           </div>
         );
+      case "services":
+        return <AdminServices />;
       case "appointments":
         return (
           <div className="space-y-6">
@@ -103,13 +134,6 @@ const Admin = () => {
             <p className="text-muted-foreground">Manage user accounts and roles.</p>
           </div>
         );
-      case "services":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Services</h2>
-            <p className="text-muted-foreground">Manage your service offerings.</p>
-          </div>
-        );
       case "coupons":
         return (
           <div className="space-y-6">
@@ -118,12 +142,7 @@ const Admin = () => {
           </div>
         );
       case "settings":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Settings</h2>
-            <p className="text-muted-foreground">Configure application settings.</p>
-          </div>
-        );
+        return <AdminSettings />;
       default:
         return null;
     }
