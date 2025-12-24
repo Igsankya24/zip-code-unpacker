@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, X, Send, Clock, User, Mail, Phone, Tag, Briefcase } from "lucide-react";
+import { MessageCircle, X, Send, Clock, User, Mail, Phone, Tag, Briefcase, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -17,6 +17,7 @@ import {
 interface Message {
   type: "bot" | "user";
   text?: string;
+  showFallback?: boolean;
 }
 
 interface Service {
@@ -31,6 +32,13 @@ interface Coupon {
   discount_percent: number;
   valid_until: string;
   current_uses: number;
+}
+
+interface BotSettings {
+  whatsappNumber: string;
+  whatsappMessage: string;
+  showServicesFallback: boolean;
+  whatsappFallbackEnabled: boolean;
 }
 
 type BookingStep = "chat" | "date" | "time" | "details" | "confirm";
@@ -57,6 +65,12 @@ const Chatbot = () => {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [botSettings, setBotSettings] = useState<BotSettings>({
+    whatsappNumber: "+917026292525",
+    whatsappMessage: "Hi! I need help with...",
+    showServicesFallback: true,
+    whatsappFallbackEnabled: true,
+  });
   const { toast } = useToast();
 
   const quickOptions = ["View Services", "Book Appointment", "Contact Us"];
@@ -73,12 +87,33 @@ const Chatbot = () => {
   const fetchSettings = async () => {
     const { data } = await supabase
       .from("site_settings")
-      .select("value")
-      .eq("key", "chatbot_welcome")
-      .maybeSingle();
+      .select("key, value")
+      .in("key", [
+        "chatbot_welcome",
+        "bot_whatsapp_number",
+        "bot_whatsapp_message",
+        "bot_show_services_fallback",
+        "bot_whatsapp_fallback",
+      ]);
     
-    if (data?.value) {
-      setWelcomeMessage(data.value);
+    if (data) {
+      data.forEach((setting) => {
+        if (setting.key === "chatbot_welcome" && setting.value) {
+          setWelcomeMessage(setting.value);
+        }
+        if (setting.key === "bot_whatsapp_number" && setting.value) {
+          setBotSettings((prev) => ({ ...prev, whatsappNumber: setting.value }));
+        }
+        if (setting.key === "bot_whatsapp_message" && setting.value) {
+          setBotSettings((prev) => ({ ...prev, whatsappMessage: setting.value }));
+        }
+        if (setting.key === "bot_show_services_fallback") {
+          setBotSettings((prev) => ({ ...prev, showServicesFallback: setting.value === "true" }));
+        }
+        if (setting.key === "bot_whatsapp_fallback") {
+          setBotSettings((prev) => ({ ...prev, whatsappFallbackEnabled: setting.value === "true" }));
+        }
+      });
     }
   };
 
@@ -168,7 +203,8 @@ const Chatbot = () => {
           ...prev,
           {
             type: "bot",
-            text: "Thank you for your message! Our team will get back to you shortly. For immediate assistance, please call us at +91 7026292525.",
+            text: "Thank you for your message! Our team will get back to you shortly.",
+            showFallback: true,
           },
         ]);
       }, 1000);
@@ -314,7 +350,7 @@ const Chatbot = () => {
 
           <div className="h-96 overflow-y-auto p-4 space-y-4 bg-muted/30">
             {messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={idx} className={`flex flex-col ${msg.type === "user" ? "items-end" : "items-start"}`}>
                 <div
                   className={`max-w-[80%] p-3 rounded-2xl text-sm whitespace-pre-line ${
                     msg.type === "user"
@@ -324,6 +360,38 @@ const Chatbot = () => {
                 >
                   {msg.text}
                 </div>
+                
+                {/* WhatsApp & Services Fallback */}
+                {msg.showFallback && (botSettings.whatsappFallbackEnabled || botSettings.showServicesFallback) && (
+                  <div className="mt-2 max-w-[80%] space-y-2">
+                    {botSettings.whatsappFallbackEnabled && (
+                      <a
+                        href={`https://wa.me/${botSettings.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(botSettings.whatsappMessage)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Contact on WhatsApp
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                    
+                    {botSettings.showServicesFallback && services.length > 0 && (
+                      <div className="bg-card border border-border rounded-lg p-3">
+                        <p className="text-xs font-medium text-foreground mb-2">Our Services:</p>
+                        <div className="space-y-1">
+                          {services.slice(0, 4).map((s) => (
+                            <div key={s.id} className="text-xs text-muted-foreground flex justify-between">
+                              <span>• {s.name}</span>
+                              {s.price && <span>₹{s.price}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
 

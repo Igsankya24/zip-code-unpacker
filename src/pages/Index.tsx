@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import ServiceCard from "@/components/ServiceCard";
+import { supabase } from "@/integrations/supabase/client";
 import {
   HardDrive,
   RefreshCw,
@@ -13,32 +15,54 @@ import {
   Phone,
   Clock,
   Award,
+  Globe,
+  Laptop,
+  Database,
+  Settings,
+  Wifi,
+  LucideIcon,
 } from "lucide-react";
 
+interface Service {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+}
+
+const iconMap: Record<string, LucideIcon> = {
+  HardDrive,
+  RefreshCw,
+  KeyRound,
+  Wrench,
+  Shield,
+  Zap,
+  Globe,
+  Laptop,
+  Database,
+  Settings,
+  Wifi,
+};
+
 const Index = () => {
-  const services = [
-    {
-      icon: HardDrive,
-      title: "Data Recovery",
-      description:
-        "Professional data recovery from hard drives, SSDs, USB drives, and memory cards with 95%+ success rate.",
-    },
-    {
-      icon: RefreshCw,
-      title: "Windows Upgrade",
-      description: "Seamless Windows upgrades while keeping all your files, applications, and settings intact.",
-    },
-    {
-      icon: KeyRound,
-      title: "Password Recovery",
-      description: "Remove or reset Windows passwords without losing any data. Quick and secure solution.",
-    },
-    {
-      icon: Wrench,
-      title: "Computer Repair",
-      description: "Expert hardware and software repairs for laptops and desktops. All brands supported.",
-    },
-  ];
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    const { data } = await supabase
+      .from("services")
+      .select("id, name, description, icon")
+      .eq("is_visible", true)
+      .order("display_order", { ascending: true })
+      .limit(4);
+    
+    if (data) setServices(data);
+    setLoading(false);
+  };
 
   const stats = [
     { value: "10K+", label: "Happy Customers" },
@@ -133,10 +157,21 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-            {services.map((service, idx) => (
-              <ServiceCard key={idx} {...service} />
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
+            {loading ? (
+              <div className="col-span-2 text-center py-8 text-muted-foreground">Loading services...</div>
+            ) : services.length > 0 ? (
+              services.map((service) => (
+                <ServiceCard 
+                  key={service.id} 
+                  icon={iconMap[service.icon || "Globe"] || Globe}
+                  title={service.name}
+                  description={service.description || ""}
+                />
+              ))
+            ) : (
+              <div className="col-span-2 text-center py-8 text-muted-foreground">No services available</div>
+            )}
           </div>
 
           <div className="text-center mt-8 md:mt-12">

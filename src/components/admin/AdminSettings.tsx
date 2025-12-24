@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Save, ExternalLink, MessageCircle } from "lucide-react";
+import { Save, ExternalLink } from "lucide-react";
 
 interface Settings {
   [key: string]: string;
@@ -83,76 +83,6 @@ const AdminSettings = () => {
         </div>
       </div>
 
-      {/* Chatbot Settings */}
-      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">Chatbot Settings</h3>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium text-foreground">Enable Chatbot</p>
-            <p className="text-sm text-muted-foreground">
-              Show chatbot widget to customers
-            </p>
-          </div>
-          <Switch
-            checked={settings.chatbot_enabled !== "false"}
-            onCheckedChange={(checked) => updateSetting("chatbot_enabled", checked.toString())}
-          />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium text-foreground">Show Booking Popup</p>
-            <p className="text-sm text-muted-foreground">
-              Show floating "Book Appointment" button
-            </p>
-          </div>
-          <Switch
-            checked={settings.booking_popup_enabled === "true"}
-            onCheckedChange={(checked) => updateSetting("booking_popup_enabled", checked.toString())}
-          />
-        </div>
-        
-        <div className="space-y-4 pt-4 border-t border-border">
-          <div>
-            <label className="block text-sm font-medium mb-2">Welcome Message</label>
-            <div className="flex gap-2">
-              <Textarea
-                value={settings.chatbot_welcome || ""}
-                onChange={(e) => handleInputChange("chatbot_welcome", e.target.value)}
-                placeholder="Hello! 👋 Welcome to Krishna Tech Solutions. How can I help you today?"
-                rows={2}
-              />
-              <Button 
-                onClick={() => updateSetting("chatbot_welcome", settings.chatbot_welcome || "")}
-                disabled={saving}
-              >
-                <Save className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Booking Popup Text</label>
-            <div className="flex gap-2">
-              <Input
-                value={settings.booking_popup_text || ""}
-                onChange={(e) => handleInputChange("booking_popup_text", e.target.value)}
-                placeholder="Book Appointment"
-              />
-              <Button 
-                onClick={() => updateSetting("booking_popup_text", settings.booking_popup_text || "")}
-                disabled={saving}
-              >
-                <Save className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Social Links */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
@@ -160,22 +90,22 @@ const AdminSettings = () => {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">GitHub Link</label>
+            <label className="block text-sm font-medium mb-2">WhatsApp Number</label>
             <div className="flex gap-2">
               <Input
-                value={settings.github_link || ""}
-                onChange={(e) => handleInputChange("github_link", e.target.value)}
-                placeholder="https://github.com/your-org"
+                value={settings.whatsapp_number || ""}
+                onChange={(e) => handleInputChange("whatsapp_number", e.target.value)}
+                placeholder="+91 7026292525"
               />
               <Button 
-                onClick={() => updateSetting("github_link", settings.github_link || "")}
+                onClick={() => updateSetting("whatsapp_number", settings.whatsapp_number || "")}
                 disabled={saving}
               >
                 <Save className="w-4 h-4" />
               </Button>
-              {settings.github_link && (
+              {settings.whatsapp_number && (
                 <Button variant="outline" asChild>
-                  <a href={settings.github_link} target="_blank" rel="noopener noreferrer">
+                  <a href={`https://wa.me/${settings.whatsapp_number.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </Button>

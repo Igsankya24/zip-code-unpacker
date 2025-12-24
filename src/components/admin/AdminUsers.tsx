@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, FileSpreadsheet, FileText, File, Download } from "lucide-react";
+import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, FileSpreadsheet, FileText, File, Download, Trash2, Key, Shield } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +59,9 @@ const AdminUsers = () => {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [passwordResetUser, setPasswordResetUser] = useState<UserProfile | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -164,6 +177,41 @@ const AdminUsers = () => {
       toast({ title: "Success", description: "Role updated successfully" });
       fetchUsers();
     }
+  };
+
+  const deleteUser = async (user: UserProfile) => {
+    if (user.role === "super_admin") {
+      toast({ title: "Error", description: "Super Admin accounts cannot be deleted", variant: "destructive" });
+      return;
+    }
+
+    // Delete profile (this will cascade to related data)
+    const { error } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("user_id", user.user_id);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "User deleted successfully" });
+      fetchUsers();
+    }
+    setDeleteDialogOpen(false);
+    setUserToDelete(null);
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Password reset email sent" });
+    }
+    setPasswordResetUser(null);
   };
 
   const handleEditSave = async () => {
@@ -351,7 +399,7 @@ const AdminUsers = () => {
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 flex-wrap">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -384,6 +432,34 @@ const AdminUsers = () => {
                           <Lock className="w-4 h-4 text-orange-500" />
                         )}
                       </Button>
+                      {user.email && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPasswordResetUser(user)}
+                          title="Send password reset email"
+                        >
+                          <Key className="w-4 h-4 text-blue-500" />
+                        </Button>
+                      )}
+                      {user.role !== "super_admin" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setUserToDelete(user);
+                            setDeleteDialogOpen(true);
+                          }}
+                          title="Delete user"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
+                      {user.role === "super_admin" && (
+                        <span className="ml-1" title="Super Admin - Protected">
+                          <Shield className="w-4 h-4 text-primary" />
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -480,6 +556,47 @@ const AdminUsers = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {userToDelete?.full_name || userToDelete?.email}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && deleteUser(userToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Password Reset Dialog */}
+      <AlertDialog open={!!passwordResetUser} onOpenChange={() => setPasswordResetUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Password Reset</AlertDialogTitle>
+            <AlertDialogDescription>
+              Send a password reset email to {passwordResetUser?.email}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => passwordResetUser?.email && sendPasswordReset(passwordResetUser.email)}
+            >
+              Send Reset Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
