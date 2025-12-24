@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, X, Send, Calendar, Clock, User, Mail, Phone } from "lucide-react";
+import { MessageCircle, X, Send, Calendar, Clock, User, Mail, Phone, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -18,7 +18,14 @@ interface Service {
   price: number | null;
 }
 
-type BookingStep = "chat" | "service" | "date" | "time" | "details" | "confirm";
+interface Coupon {
+  id: string;
+  code: string;
+  discount_percent: number;
+  valid_until: string;
+}
+
+type BookingStep = "chat" | "service" | "date" | "time" | "coupon" | "details" | "confirm";
 
 const timeSlots = [
   "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
@@ -40,9 +47,12 @@ const Chatbot = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState("");
   const [userDetails, setUserDetails] = useState({ name: "", email: "", phone: "" });
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const { toast } = useToast();
 
-  const quickOptions = ["Data Recovery", "Windows Upgrade", "Computer Repair", "Book Appointment"];
+  const quickOptions = ["View Services", "Book Appointment", "Apply Coupon", "Contact Us"];
 
   useEffect(() => {
     fetchServices();
@@ -53,8 +63,42 @@ const Chatbot = () => {
       .from("services")
       .select("id, name, price")
       .eq("is_visible", true)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
     if (data) setServices(data);
+  };
+
+  const validateCoupon = async (code: string) => {
+    setValidatingCoupon(true);
+    const { data, error } = await supabase
+      .from("coupons")
+      .select("*")
+      .eq("code", code.toUpperCase())
+      .eq("is_active", true)
+      .gte("valid_until", new Date().toISOString())
+      .maybeSingle();
+
+    setValidatingCoupon(false);
+
+    if (error || !data) {
+      setMessages((prev) => [
+        ...prev,
+        { type: "user", text: code },
+        { type: "bot", text: "❌ Invalid or expired coupon code. Please try again or skip." },
+      ]);
+      return null;
+    }
+
+    if (data.max_uses && data.current_uses >= data.max_uses) {
+      setMessages((prev) => [
+        ...prev,
+        { type: "user", text: code },
+        { type: "bot", text: "❌ This coupon has reached its usage limit." },
+      ]);
+      return null;
+    }
+
+    return data as Coupon;
   };
 
   const handleSend = async () => {
@@ -74,8 +118,29 @@ const Chatbot = () => {
         ]);
         setStep("service");
       }, 500);
+    } else if (lowerInput.includes("coupon") || lowerInput.includes("discount")) {
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "bot",
+            text: "Please enter your coupon code to apply a discount:",
+          },
+        ]);
+        setStep("coupon");
+      }, 500);
+    } else if (lowerInput.includes("service") || lowerInput.includes("price") || lowerInput.includes("offer")) {
+      setTimeout(() => {
+        const serviceList = services.map(s => `• ${s.name} - ₹${s.price || 'Contact for price'}`).join('\n');
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "bot",
+            text: `Here are our services:\n\n${serviceList}\n\nWould you like to book an appointment?`,
+          },
+        ]);
+      }, 500);
     } else {
-      // Save message to database
       await supabase.from("contact_messages").insert({
         name: "Chat User",
         email: "chatbot@temp.com",
@@ -101,19 +166,30 @@ const Chatbot = () => {
     setMessages([...messages, { type: "user", text: option }]);
 
     setTimeout(() => {
-      let response = "";
       if (option === "Book Appointment") {
-        response = "Let me help you book an appointment. Please select a service:";
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", text: "Let me help you book an appointment. Please select a service:" },
+        ]);
         setStep("service");
-      } else if (option === "Data Recovery") {
-        response = "We offer professional data recovery from HDDs, SSDs, USB drives, and memory cards with 95%+ success rate. Starting from ₹999. Would you like to book an appointment?";
-      } else if (option === "Windows Upgrade") {
-        response = "Seamless Windows upgrades while keeping all your files and settings intact. Starting from ₹999. Would you like to book an appointment?";
-      } else {
-        response = "Expert hardware and software repairs for all brands. Starting from ₹299. Would you like to book an appointment?";
+      } else if (option === "View Services") {
+        const serviceList = services.map(s => `• ${s.name} - ₹${s.price || 'Contact for price'}`).join('\n');
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", text: `Here are our services:\n\n${serviceList}\n\nWould you like to book an appointment?` },
+        ]);
+      } else if (option === "Apply Coupon") {
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", text: "Please enter your coupon code:" },
+        ]);
+        setStep("coupon");
+      } else if (option === "Contact Us") {
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", text: "📞 Phone: +91 7026292525\n📧 Email: krishnatechsolutions2024@gmail.com\n📍 Address: Main Road, Karnataka\n\nOr leave us a message and we'll get back to you!" },
+        ]);
       }
-
-      setMessages((prev) => [...prev, { type: "bot", text: response }]);
     }, 800);
   };
 
@@ -143,7 +219,35 @@ const Chatbot = () => {
     setMessages((prev) => [
       ...prev,
       { type: "user", text: time },
-      { type: "bot", text: "Please enter your details to confirm the booking:" },
+      { type: "bot", text: "Do you have a coupon code? Enter it below or click 'Skip' to continue:" },
+    ]);
+    setStep("coupon");
+  };
+
+  const handleCouponApply = async () => {
+    if (!couponCode.trim()) {
+      skipCoupon();
+      return;
+    }
+
+    const coupon = await validateCoupon(couponCode.trim());
+    if (coupon) {
+      setAppliedCoupon(coupon);
+      setMessages((prev) => [
+        ...prev,
+        { type: "user", text: couponCode },
+        { type: "bot", text: `✅ Coupon applied! You get ${coupon.discount_percent}% off. Now please enter your details:` },
+      ]);
+      setCouponCode("");
+      setStep("details");
+    }
+  };
+
+  const skipCoupon = () => {
+    setMessages((prev) => [
+      ...prev,
+      { type: "user", text: "No coupon" },
+      { type: "bot", text: "No problem! Please enter your details to confirm the booking:" },
     ]);
     setStep("details");
   };
@@ -154,31 +258,41 @@ const Chatbot = () => {
       return;
     }
 
-    // Save contact message
+    const discountText = appliedCoupon ? ` (${appliedCoupon.discount_percent}% off with code: ${appliedCoupon.code})` : "";
+    const finalPrice = selectedService?.price 
+      ? appliedCoupon 
+        ? selectedService.price * (1 - appliedCoupon.discount_percent / 100)
+        : selectedService.price
+      : null;
+
     await supabase.from("contact_messages").insert({
       name: userDetails.name,
       email: userDetails.email,
       phone: userDetails.phone,
-      subject: `Appointment: ${selectedService?.name}`,
-      message: `Booking request for ${selectedService?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} at ${selectedTime}`,
+      subject: `Appointment: ${selectedService?.name}${discountText}`,
+      message: `Booking request for ${selectedService?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} at ${selectedTime}${appliedCoupon ? `. Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}`,
       source: "chatbot_booking",
     });
+
+    // Update coupon usage if applied
+    if (appliedCoupon) {
+      await supabase
+        .from("coupons")
+        .update({ current_uses: (appliedCoupon as any).current_uses + 1 })
+        .eq("id", appliedCoupon.id);
+    }
 
     setMessages((prev) => [
       ...prev,
       { type: "user", text: `Name: ${userDetails.name}, Email: ${userDetails.email}` },
       {
         type: "bot",
-        text: `✅ Booking Request Submitted!\n\n📋 Service: ${selectedService?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}\n\nWe'll confirm your appointment shortly via email/phone. Thank you!`,
+        text: `✅ Booking Request Submitted!\n\n📋 Service: ${selectedService?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\nWe'll confirm your appointment shortly via email/phone. Thank you!`,
       },
     ]);
 
     toast({ title: "Success", description: "Booking request submitted!" });
-    setStep("chat");
-    setSelectedService(null);
-    setSelectedDate(undefined);
-    setSelectedTime("");
-    setUserDetails({ name: "", email: "", phone: "" });
+    resetBooking();
   };
 
   const resetBooking = () => {
@@ -187,6 +301,8 @@ const Chatbot = () => {
     setSelectedDate(undefined);
     setSelectedTime("");
     setUserDetails({ name: "", email: "", phone: "" });
+    setCouponCode("");
+    setAppliedCoupon(null);
   };
 
   return (
@@ -238,16 +354,20 @@ const Chatbot = () => {
             {/* Service Selection */}
             {step === "service" && (
               <div className="space-y-2">
-                {services.map((service) => (
-                  <button
-                    key={service.id}
-                    onClick={() => handleServiceSelect(service)}
-                    className="w-full p-3 bg-card border border-border rounded-lg text-left hover:bg-muted transition-colors"
-                  >
-                    <p className="font-medium text-foreground">{service.name}</p>
-                    {service.price && <p className="text-sm text-muted-foreground">₹{service.price}</p>}
-                  </button>
-                ))}
+                {services.length > 0 ? (
+                  services.map((service) => (
+                    <button
+                      key={service.id}
+                      onClick={() => handleServiceSelect(service)}
+                      className="w-full p-3 bg-card border border-border rounded-lg text-left hover:bg-muted transition-colors"
+                    >
+                      <p className="font-medium text-foreground">{service.name}</p>
+                      {service.price && <p className="text-sm text-muted-foreground">₹{service.price}</p>}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-sm">No services available at the moment.</p>
+                )}
               </div>
             )}
 
@@ -280,9 +400,38 @@ const Chatbot = () => {
               </div>
             )}
 
+            {/* Coupon Input */}
+            {step === "coupon" && (
+              <div className="space-y-3 bg-card p-4 rounded-lg border border-border">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Enter coupon code"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={skipCoupon} className="flex-1">
+                    Skip
+                  </Button>
+                  <Button onClick={handleCouponApply} disabled={validatingCoupon} className="flex-1">
+                    {validatingCoupon ? "Checking..." : "Apply"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* User Details Form */}
             {step === "details" && (
               <div className="space-y-3 bg-card p-4 rounded-lg border border-border">
+                {appliedCoupon && (
+                  <div className="bg-green-500/10 text-green-600 p-2 rounded-lg text-sm flex items-center gap-2">
+                    <Tag className="w-4 h-4" />
+                    {appliedCoupon.discount_percent}% discount applied!
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-muted-foreground" />
                   <Input
