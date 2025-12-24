@@ -301,6 +301,7 @@ const AdminAppointments = () => {
                     <Select
                       value={appointment.status}
                       onValueChange={(value) => updateStatus(appointment.id, value)}
+                      disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
                     >
                       <SelectTrigger className={`w-28 ${getStatusColor(appointment.status)}`}>
                         <SelectValue />
@@ -314,8 +315,17 @@ const AdminAppointments = () => {
                     </Select>
                   </td>
                   <td className="p-4">
-                    <Button variant="ghost" size="sm" onClick={() => deleteAppointment(appointment.id)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleDeleteClick(appointment)}
+                      title={isSuperAdmin || permissions.can_delete_appointments ? "Delete appointment" : "Request deletion"}
+                    >
+                      {isSuperAdmin || permissions.can_delete_appointments ? (
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      ) : (
+                        <Send className="w-4 h-4 text-orange-500" />
+                      )}
                     </Button>
                   </td>
                 </tr>
@@ -331,6 +341,46 @@ const AdminAppointments = () => {
           </table>
         </div>
       </div>
+
+      {/* Deletion Request Dialog */}
+      <Dialog open={deleteRequestDialog} onOpenChange={setDeleteRequestDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Appointment Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-sm">
+              You don't have permission to delete appointments directly. 
+              Your request will be sent to a Super Admin for approval.
+            </p>
+            {selectedAppointment && (
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="text-sm"><strong>Ref ID:</strong> {selectedAppointment.reference_id || "-"}</p>
+                <p className="text-sm"><strong>Customer:</strong> {selectedAppointment.user_name}</p>
+                <p className="text-sm"><strong>Date:</strong> {format(new Date(selectedAppointment.appointment_date), "MMM d, yyyy")} at {selectedAppointment.appointment_time}</p>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium mb-2">Reason for deletion</label>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Explain why this appointment should be deleted..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRequestDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={requestDeletion}>
+              <Send className="w-4 h-4 mr-2" />
+              Send Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
