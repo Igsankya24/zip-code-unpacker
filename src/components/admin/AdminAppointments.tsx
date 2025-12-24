@@ -21,6 +21,7 @@ import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 
 interface Appointment {
   id: string;
+  reference_id: string | null;
   user_id: string;
   service_id: string | null;
   appointment_date: string;
@@ -129,6 +130,7 @@ const AdminAppointments = () => {
 
   const handleExport = (type: 'excel' | 'pdf' | 'word') => {
     const exportData = filteredAppointments.map(a => ({
+      'Ref ID': a.reference_id || '-',
       Customer: a.user_name || 'Unknown',
       Email: a.user_email || '-',
       Service: a.service_name || '-',
@@ -207,6 +209,7 @@ const AdminAppointments = () => {
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr>
+                <th className="p-4 text-left text-sm font-medium">Ref ID</th>
                 <th className="p-4 text-left text-sm font-medium">Customer</th>
                 <th className="p-4 text-left text-sm font-medium hidden md:table-cell">Service</th>
                 <th className="p-4 text-left text-sm font-medium">Date & Time</th>
@@ -217,6 +220,11 @@ const AdminAppointments = () => {
             <tbody>
               {filteredAppointments.map((appointment) => (
                 <tr key={appointment.id} className="border-t border-border hover:bg-muted/30">
+                  <td className="p-4">
+                    <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                      {appointment.reference_id || "-"}
+                    </span>
+                  </td>
                   <td className="p-4">
                     <div>
                       <p className="font-medium text-foreground">{appointment.user_name || "Unknown"}</p>
@@ -260,7 +268,7 @@ const AdminAppointments = () => {
               ))}
               {filteredAppointments.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
                     No appointments found.
                   </td>
                 </tr>

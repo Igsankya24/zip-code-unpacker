@@ -158,8 +158,14 @@ const AdminMessages = () => {
                       <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
                     )}
                     <h4 className="font-semibold text-foreground truncate">{message.name}</h4>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                      {message.source === "chatbot" ? "Chatbot" : message.source === "chatbot_booking" ? "Booking" : "Contact"}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      message.source === "chatbot_booking" 
+                        ? "bg-primary/10 text-primary font-medium" 
+                        : message.source === "chatbot" 
+                          ? "bg-muted text-muted-foreground" 
+                          : "bg-muted text-muted-foreground"
+                    }`}>
+                      {message.source === "chatbot" ? "💬 Chat" : message.source === "chatbot_booking" ? "📅 Booking Request" : "📧 Contact"}
                     </span>
                   </div>
                   {message.subject && (
