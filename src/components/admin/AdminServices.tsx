@@ -271,62 +271,71 @@ const AdminServices = () => {
       </div>
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="p-4 text-left text-sm font-medium">Order</th>
-              <th className="p-4 text-left text-sm font-medium">Name</th>
-              <th className="p-4 text-left text-sm font-medium hidden md:table-cell">Icon</th>
-              <th className="p-4 text-left text-sm font-medium">Visible</th>
-              <th className="p-4 text-left text-sm font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {services.map((service, index) => (
-              <tr key={service.id} className="border-t border-border hover:bg-muted/30">
-                <td className="p-4">
-                  <GripVertical className="w-4 h-4 text-muted-foreground" />
-                </td>
-                <td className="p-4">
-                  <div>
-                    <p className="font-medium text-foreground">{service.name}</p>
-                    <p className="text-sm text-muted-foreground line-clamp-1">
-                      {service.description}
-                    </p>
-                  </div>
-                </td>
-                <td className="p-4 hidden md:table-cell">
-                  <span className="text-sm text-muted-foreground">{service.icon}</span>
-                </td>
-                <td className="p-4">
-                  <button
-                    onClick={() => toggleVisibility(service)}
-                    className={`p-2 rounded-lg ${service.is_visible ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}
-                  >
-                    {service.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </button>
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(service)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => deleteService(service.id)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {services.length === 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-muted/50">
               <tr>
-                <td colSpan={5} className="p-8 text-center text-muted-foreground">
-                  No services found. Add your first service!
-                </td>
+                <th className="p-4 text-left text-sm font-medium">Order</th>
+                <th className="p-4 text-left text-sm font-medium">Name</th>
+                <th className="p-4 text-left text-sm font-medium hidden md:table-cell">Icon</th>
+                <th className="p-4 text-left text-sm font-medium">Price</th>
+                <th className="p-4 text-left text-sm font-medium">Visible</th>
+                <th className="p-4 text-left text-sm font-medium">Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {services.map((service, index) => (
+                <tr key={service.id} className="border-t border-border hover:bg-muted/30">
+                  <td className="p-4">
+                    <GripVertical className="w-4 h-4 text-muted-foreground" />
+                  </td>
+                  <td className="p-4">
+                    <div>
+                      <p className="font-medium text-foreground">{service.name}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-1">
+                        {service.description}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="p-4 hidden md:table-cell">
+                    <span className="text-sm text-muted-foreground">{service.icon}</span>
+                  </td>
+                  <td className="p-4">
+                    <span className="font-medium text-foreground">
+                      {service.price ? `₹${service.price}` : "-"}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => toggleVisibility(service)}
+                      className={`p-2 rounded-lg ${service.is_visible ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}
+                      title={service.is_visible ? "Click to hide" : "Click to show"}
+                    >
+                      {service.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(service)} title="Edit">
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => deleteService(service.id)} title="Delete">
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {services.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                    No services found. Add your first service!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
