@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download } from "lucide-react";
+import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 
 interface Appointment {
@@ -38,7 +47,11 @@ const AdminAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
   const { toast } = useToast();
+  const { user, isSuperAdmin, permissions } = useAuth();
 
   useEffect(() => {
     fetchAppointments();
@@ -58,7 +71,6 @@ const AdminAppointments = () => {
       return;
     }
 
-    // Fetch user profiles and services
     const userIds = [...new Set(appointmentsData?.map(a => a.user_id) || [])];
     const serviceIds = [...new Set(appointmentsData?.filter(a => a.service_id).map(a => a.service_id) || [])];
 
@@ -89,6 +101,11 @@ const AdminAppointments = () => {
   };
 
   const updateStatus = async (id: string, status: string) => {
+    if (!permissions.can_confirm_appointments && !isSuperAdmin) {
+      toast({ title: "Error", description: "You don't have permission to update appointments", variant: "destructive" });
+      return;
+    }
+
     const { error } = await supabase
       .from("appointments")
       .update({ status, updated_at: new Date().toISOString() })
@@ -103,8 +120,6 @@ const AdminAppointments = () => {
   };
 
   const deleteAppointment = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this appointment?")) return;
-
     const { error } = await supabase.from("appointments").delete().eq("id", id);
 
     if (error) {
@@ -112,6 +127,45 @@ const AdminAppointments = () => {
     } else {
       toast({ title: "Success", description: "Appointment deleted" });
       fetchAppointments();
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!selectedAppointment || !user) return;
+
+    const { error } = await supabase.from("deletion_requests").insert({
+      request_type: "appointment",
+      target_id: selectedAppointment.id,
+      requested_by: user.id,
+      reason: deleteReason,
+    });
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Deletion request sent to Super Admin" });
+      
+      // Create notification for super admins
+      await supabase.from("notifications").insert({
+        title: "New Deletion Request",
+        message: `Admin requested deletion of appointment ${selectedAppointment.reference_id || selectedAppointment.id.substring(0, 8)}`,
+        type: "warning"
+      });
+    }
+
+    setDeleteRequestDialog(false);
+    setSelectedAppointment(null);
+    setDeleteReason("");
+  };
+
+  const handleDeleteClick = (appointment: Appointment) => {
+    if (isSuperAdmin || permissions.can_delete_appointments) {
+      if (confirm("Are you sure you want to delete this appointment?")) {
+        deleteAppointment(appointment.id);
+      }
+    } else {
+      setSelectedAppointment(appointment);
+      setDeleteRequestDialog(true);
     }
   };
 
