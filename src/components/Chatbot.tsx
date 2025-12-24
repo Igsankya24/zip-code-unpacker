@@ -41,7 +41,7 @@ interface BotSettings {
   whatsappFallbackEnabled: boolean;
 }
 
-type BookingStep = "chat" | "date" | "time" | "details" | "confirm";
+type BookingStep = "chat" | "date" | "time" | "details" | "confirm" | "tracking";
 
 // 3-hour appointment slots from 9 AM to 8 PM (last slot at 5 PM ends at 8 PM)
 const timeSlots = [
@@ -65,6 +65,7 @@ const Chatbot = () => {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [trackingId, setTrackingId] = useState("");
   const [botSettings, setBotSettings] = useState<BotSettings>({
     whatsappNumber: "+917026292525",
     whatsappMessage: "Hi! I need help with...",
@@ -73,7 +74,7 @@ const Chatbot = () => {
   });
   const { toast } = useToast();
 
-  const quickOptions = ["View Services", "Book Appointment", "Contact Us"];
+  const quickOptions = ["View Services", "Book Appointment", "Track Appointment", "Contact Us"];
 
   useEffect(() => {
     fetchSettings();
@@ -167,8 +168,65 @@ const Chatbot = () => {
 
     setMessages([...messages, { type: "user", text: input }]);
 
+    // Handle tracking step
+    if (step === "tracking") {
+      const refId = input.trim().toUpperCase();
+      setTrackingId(refId);
+      
+      const { data: appointment, error } = await supabase
+        .from("appointments")
+        .select("*, services(name)")
+        .eq("reference_id", refId)
+        .maybeSingle();
+
+      if (error || !appointment) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "bot",
+            text: `❌ No appointment found with reference ID: ${refId}\n\nPlease check the ID and try again, or contact us for help.`,
+            showFallback: true,
+          },
+        ]);
+      } else {
+        const statusEmoji = {
+          pending: "🕐",
+          confirmed: "✅",
+          completed: "🎉",
+          cancelled: "❌",
+        }[appointment.status] || "📋";
+        
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "bot",
+            text: `${statusEmoji} Appointment Found!\n\n🆔 Reference: ${appointment.reference_id}\n📋 Service: ${(appointment.services as any)?.name || "N/A"}\n📅 Date: ${format(new Date(appointment.appointment_date), "PPP")}\n⏰ Time: ${appointment.appointment_time}\n📊 Status: ${appointment.status.toUpperCase()}\n\n${appointment.status === "pending" ? "Your appointment is awaiting confirmation." : appointment.status === "confirmed" ? "Your appointment is confirmed!" : appointment.status === "completed" ? "This appointment has been completed. Thank you!" : "This appointment was cancelled."}`,
+          },
+        ]);
+      }
+      setStep("chat");
+      setInput("");
+      return;
+    }
+
     const lowerInput = input.toLowerCase();
-    if (lowerInput.includes("book") || lowerInput.includes("appointment") || lowerInput.includes("schedule")) {
+    if (lowerInput.includes("track") || lowerInput.includes("status") || lowerInput.includes("kts-")) {
+      // Check if input contains a reference ID
+      const refMatch = input.match(/KTS-\d{6}-\w{4}/i);
+      if (refMatch) {
+        setInput(refMatch[0]);
+        setStep("tracking");
+        handleSend();
+        return;
+      }
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-241224-abc1):" },
+        ]);
+        setStep("tracking");
+      }, 500);
+    } else if (lowerInput.includes("book") || lowerInput.includes("appointment") || lowerInput.includes("schedule")) {
       setTimeout(() => {
         setMessages((prev) => [
           ...prev,
@@ -229,6 +287,12 @@ const Chatbot = () => {
           ...prev,
           { type: "bot", text: `Here are our services:\n\n${serviceList}\n\nWould you like to book an appointment?` },
         ]);
+      } else if (option === "Track Appointment") {
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-241224-abc1):" },
+        ]);
+        setStep("tracking" as BookingStep);
       } else if (option === "Contact Us") {
         setMessages((prev) => [
           ...prev,
@@ -277,14 +341,18 @@ const Chatbot = () => {
         : service.price
       : null;
 
-    await supabase.from("contact_messages").insert({
+    // Save as contact message for admin to review and create appointment
+    const { data: messageData, error: messageError } = await supabase.from("contact_messages").insert({
       name: userDetails.name,
       email: userDetails.email,
       phone: userDetails.phone,
-      subject: `Appointment: ${service?.name}${discountText}`,
-      message: `Booking request for ${service?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} at ${selectedTime} (3-hour appointment)${appliedCoupon ? `. Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}`,
+      subject: `📅 Appointment Request: ${service?.name}${discountText}`,
+      message: `New appointment request:\n\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}\n📧 Email: ${userDetails.email}\n📱 Phone: ${userDetails.phone}${appliedCoupon ? `\n🎟️ Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n⚠️ Please create the appointment manually from admin panel.`,
       source: "chatbot_booking",
-    });
+    }).select().single();
+
+    // Generate a temporary reference for the user
+    const tempRef = `REQ-${format(new Date(), "yyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
     // Update coupon usage if applied
     if (appliedCoupon) {
@@ -299,7 +367,7 @@ const Chatbot = () => {
       { type: "user", text: `Booking: ${service?.name}` },
       {
         type: "bot",
-        text: `✅ Booking Request Submitted!\n\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime} (3 hours)\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\nWe'll confirm your appointment shortly via email/phone. Thank you!`,
+        text: `✅ Booking Request Submitted!\n\n🆔 Request ID: ${tempRef}\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "PPP") : ""}\n⏰ Time: ${selectedTime} (3 hours)\n👤 Name: ${userDetails.name}${appliedCoupon ? `\n🎟️ Discount: ${appliedCoupon.discount_percent}% off` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n📞 We'll contact you shortly to confirm your appointment and provide the official reference ID.\n\nSave your request ID: ${tempRef}`,
       },
     ]);
 
