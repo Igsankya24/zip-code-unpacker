@@ -11,6 +11,7 @@ interface Service {
   description: string | null;
   icon: string;
   features: string[];
+  price: number | null;
   is_visible: boolean;
 }
 
@@ -81,6 +82,7 @@ const Services = () => {
                     description={service.description || ""}
                     icon={iconMap[service.icon] || Globe}
                     features={service.features || []}
+                    price={service.price ? `₹${service.price.toLocaleString('en-IN')}` : undefined}
                   />
                 ))}
               </div>
