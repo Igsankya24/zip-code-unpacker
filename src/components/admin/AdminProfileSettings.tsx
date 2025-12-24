@@ -237,45 +237,43 @@ const AdminProfileSettings = () => {
         </Button>
       </div>
 
-      {/* Password Change - Only for Super Admin */}
-      {isSuperAdmin && (
-        <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Lock className="w-5 h-5" /> Change Password
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            As a Super Admin, you can change your password here.
-          </p>
+      {/* Password Change - Available for all admins */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <Lock className="w-5 h-5" /> Change Password
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Change your account password directly. No email verification required.
+        </p>
 
-          <div className="space-y-4 max-w-md">
-            <div>
-              <label className="block text-sm font-medium mb-2">New Password</label>
-              <Input
-                type="password"
-                value={passwords.new}
-                onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                placeholder="Enter new password"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Confirm New Password</label>
-              <Input
-                type="password"
-                value={passwords.confirm}
-                onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                placeholder="Confirm new password"
-              />
-            </div>
-            <Button
-              onClick={handlePasswordChange}
-              disabled={changingPassword || !passwords.new || !passwords.confirm}
-            >
-              <Lock className="w-4 h-4 mr-2" />
-              {changingPassword ? "Changing..." : "Change Password"}
-            </Button>
+        <div className="space-y-4 max-w-md">
+          <div>
+            <label className="block text-sm font-medium mb-2">New Password</label>
+            <Input
+              type="password"
+              value={passwords.new}
+              onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+              placeholder="Enter new password (min 6 characters)"
+            />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+            <Input
+              type="password"
+              value={passwords.confirm}
+              onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+              placeholder="Confirm new password"
+            />
+          </div>
+          <Button
+            onClick={handlePasswordChange}
+            disabled={changingPassword || !passwords.new || !passwords.confirm}
+          >
+            <Lock className="w-4 h-4 mr-2" />
+            {changingPassword ? "Changing..." : "Change Password"}
+          </Button>
         </div>
-      )}
+      </div>
     </div>
   );
 };

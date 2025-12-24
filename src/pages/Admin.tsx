@@ -20,7 +20,9 @@ import {
   Shield,
   Trash2,
   Paintbrush,
-  UserCog
+  UserCog,
+  BarChart3,
+  Lock
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -34,6 +36,8 @@ import AdminPermissions from "@/components/admin/AdminPermissions";
 import AdminDeletionRequests from "@/components/admin/AdminDeletionRequests";
 import AdminCustomization from "@/components/admin/AdminCustomization";
 import AdminUserPermissions from "@/components/admin/AdminUserPermissions";
+import AdminAnalytics from "@/components/admin/AdminAnalytics";
+import AdminUserAccess from "@/components/admin/AdminUserAccess";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Popover,
@@ -41,7 +45,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type AdminTab = "dashboard" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions";
+type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access";
 
 interface DashboardStats {
   totalUsers: number;
@@ -180,11 +184,13 @@ const Admin = () => {
   // Filter tabs based on permissions
   const allTabs = [
     { id: "dashboard" as AdminTab, label: "Dashboard", icon: LayoutDashboard, visible: true },
+    { id: "analytics" as AdminTab, label: "Analytics", icon: BarChart3, visible: isSuperAdmin },
     { id: "services" as AdminTab, label: "Services", icon: Briefcase, visible: permissions.can_view_services },
     { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar, visible: permissions.can_view_appointments },
     { id: "messages" as AdminTab, label: "Messages", icon: MessageSquare, badge: stats.unreadMessages, visible: permissions.can_view_messages },
     { id: "users" as AdminTab, label: "Users", icon: Users, visible: permissions.can_view_users },
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket, visible: permissions.can_view_coupons },
+    { id: "user-access" as AdminTab, label: "User Access", icon: Lock, visible: permissions.can_manage_users },
     { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot, visible: permissions.can_view_settings },
     { id: "customization" as AdminTab, label: "Customization", icon: Paintbrush, visible: isSuperAdmin },
     { id: "user-permissions" as AdminTab, label: "User Roles", icon: UserCog, visible: isSuperAdmin },
@@ -296,6 +302,8 @@ const Admin = () => {
             </div>
           </div>
         );
+      case "analytics":
+        return isSuperAdmin ? <AdminAnalytics /> : null;
       case "services":
         return <AdminServices />;
       case "appointments":
@@ -308,6 +316,8 @@ const Admin = () => {
         return <AdminMessages />;
       case "bot":
         return <AdminBot />;
+      case "user-access":
+        return <AdminUserAccess />;
       case "permissions":
         return isSuperAdmin ? <AdminPermissions /> : null;
       case "deletion-requests":
