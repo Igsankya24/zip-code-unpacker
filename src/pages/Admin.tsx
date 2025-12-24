@@ -73,6 +73,7 @@ interface Notification {
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedAppointmentForInvoice, setSelectedAppointmentForInvoice] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats>({ 
     totalUsers: 0, 
     totalServices: 0, 
@@ -175,6 +176,38 @@ const Admin = () => {
     
     // Delete from database
     await supabase.from("notifications").delete().in("id", notificationIds);
+  };
+
+  const getNotificationRedirect = (notification: Notification): AdminTab | null => {
+    const title = notification.title.toLowerCase();
+    const message = notification.message.toLowerCase();
+    
+    if (title.includes("appointment") || message.includes("appointment") || message.includes("booked")) {
+      return "appointments";
+    }
+    if (title.includes("message") || message.includes("message") || message.includes("contact")) {
+      return "messages";
+    }
+    if (title.includes("user") || message.includes("signed up") || message.includes("approval") || message.includes("registered")) {
+      return "users";
+    }
+    if (title.includes("deletion") || message.includes("deletion")) {
+      return "deletion-requests";
+    }
+    return null;
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    await markAsRead(notification.id);
+    const redirect = getNotificationRedirect(notification);
+    if (redirect) {
+      setActiveTab(redirect);
+    }
+  };
+
+  const handleNavigateToInvoice = (appointmentId: string) => {
+    setSelectedAppointmentForInvoice(appointmentId);
+    setActiveTab("invoices");
   };
 
   if (isLoading) {
@@ -324,9 +357,9 @@ const Admin = () => {
       case "services":
         return <AdminServices />;
       case "appointments":
-        return <AdminAppointments />;
+        return <AdminAppointments onNavigateToInvoice={handleNavigateToInvoice} />;
       case "invoices":
-        return <AdminInvoices />;
+        return <AdminInvoices preSelectedAppointmentId={selectedAppointmentForInvoice} onClearSelection={() => setSelectedAppointmentForInvoice(null)} />;
       case "users":
         return <AdminUsers />;
       case "coupons":
@@ -471,10 +504,13 @@ const Admin = () => {
                       className={`p-4 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 ${
                         !notification.is_read ? "bg-primary/5" : ""
                       }`}
-                      onClick={() => markAsRead(notification.id)}
+                      onClick={() => handleNotificationClick(notification)}
                     >
                       <p className="font-medium text-sm">{notification.title}</p>
                       <p className="text-muted-foreground text-xs mt-1">{notification.message}</p>
+                      {getNotificationRedirect(notification) && (
+                        <p className="text-xs text-primary mt-1">Click to view →</p>
+                      )}
                     </div>
                   ))
                 ) : (

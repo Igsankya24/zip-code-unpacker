@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send } from "lucide-react";
+import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send, Check, X, CheckCircle, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -28,6 +28,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 
+interface AdminAppointmentsProps {
+  onNavigateToInvoice?: (appointmentId: string) => void;
+}
+
 interface Appointment {
   id: string;
   reference_id: string | null;
@@ -43,7 +47,7 @@ interface Appointment {
   service_name?: string;
 }
 
-const AdminAppointments = () => {
+const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -298,35 +302,86 @@ const AdminAppointments = () => {
                     </div>
                   </td>
                   <td className="p-4">
-                    <Select
-                      value={appointment.status}
-                      onValueChange={(value) => updateStatus(appointment.id, value)}
-                      disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
-                    >
-                      <SelectTrigger className={`w-28 ${getStatusColor(appointment.status)}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                    </span>
                   </td>
                   <td className="p-4">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleDeleteClick(appointment)}
-                      title={isSuperAdmin || permissions.can_delete_appointments ? "Delete appointment" : "Request deletion"}
-                    >
-                      {isSuperAdmin || permissions.can_delete_appointments ? (
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      ) : (
-                        <Send className="w-4 h-4 text-orange-500" />
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {/* Pending: Show Confirm and Cancel buttons */}
+                      {appointment.status === "pending" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateStatus(appointment.id, "confirmed")}
+                            disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            title="Confirm appointment"
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateStatus(appointment.id, "cancelled")}
+                            disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Cancel appointment"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </>
                       )}
-                    </Button>
+                      
+                      {/* Confirmed: Show Complete button */}
+                      {appointment.status === "confirmed" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => updateStatus(appointment.id, "completed")}
+                          disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          title="Mark as completed"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Complete
+                        </Button>
+                      )}
+                      
+                      {/* Completed: Show Generate Invoice button */}
+                      {appointment.status === "completed" && onNavigateToInvoice && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onNavigateToInvoice(appointment.id)}
+                          className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                          title="Generate invoice"
+                        >
+                          <Receipt className="w-4 h-4 mr-1" />
+                          Invoice
+                        </Button>
+                      )}
+                      
+                      {/* Cancelled: Show status text */}
+                      {appointment.status === "cancelled" && (
+                        <span className="text-xs text-muted-foreground px-2">Cancelled</span>
+                      )}
+                      
+                      {/* Delete button */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDeleteClick(appointment)}
+                        title={isSuperAdmin || permissions.can_delete_appointments ? "Delete appointment" : "Request deletion"}
+                      >
+                        {isSuperAdmin || permissions.can_delete_appointments ? (
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        ) : (
+                          <Send className="w-4 h-4 text-orange-500" />
+                        )}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
