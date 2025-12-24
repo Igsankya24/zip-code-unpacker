@@ -1,47 +1,55 @@
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import ServiceCard from "@/components/ServiceCard";
-import { Monitor, Smartphone, Globe, Shield, Database, Headphones } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Monitor, Smartphone, Globe, Shield, Database, Headphones, Code, Server, Cloud, Lock, Zap, Settings } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const services = [
-  {
-    title: "Web Development",
-    description: "Custom websites and web applications built with modern technologies for optimal performance and user experience.",
-    icon: Globe,
-    features: ["Responsive Design", "SEO Optimized", "Fast Loading", "Secure"]
-  },
-  {
-    title: "Mobile App Development",
-    description: "Native and cross-platform mobile applications for iOS and Android devices.",
-    icon: Smartphone,
-    features: ["iOS & Android", "Cross-Platform", "User-Friendly", "Scalable"]
-  },
-  {
-    title: "Desktop Applications",
-    description: "Powerful desktop software solutions for Windows, macOS, and Linux platforms.",
-    icon: Monitor,
-    features: ["Cross-Platform", "High Performance", "Offline Support", "Custom UI"]
-  },
-  {
-    title: "Cybersecurity",
-    description: "Comprehensive security solutions to protect your digital assets and data.",
-    icon: Shield,
-    features: ["Vulnerability Assessment", "Penetration Testing", "Security Audits", "Compliance"]
-  },
-  {
-    title: "Database Solutions",
-    description: "Design, implementation, and optimization of database systems for your business needs.",
-    icon: Database,
-    features: ["Design & Setup", "Migration", "Optimization", "Backup Solutions"]
-  },
-  {
-    title: "IT Support",
-    description: "24/7 technical support and maintenance services to keep your systems running smoothly.",
-    icon: Headphones,
-    features: ["24/7 Support", "Remote Assistance", "On-Site Service", "Maintenance"]
-  }
-];
+interface Service {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  features: string[];
+  is_visible: boolean;
+}
+
+const iconMap: Record<string, LucideIcon> = {
+  Globe,
+  Smartphone,
+  Monitor,
+  Shield,
+  Database,
+  Headphones,
+  Code,
+  Server,
+  Cloud,
+  Lock,
+  Zap,
+  Settings,
+};
 
 const Services = () => {
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    const { data, error } = await supabase
+      .from("services")
+      .select("*")
+      .eq("is_visible", true)
+      .order("display_order", { ascending: true });
+
+    if (!error && data) {
+      setServices(data);
+    }
+    setLoading(false);
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-background">
@@ -60,17 +68,27 @@ const Services = () => {
         {/* Services Grid */}
         <section className="py-16">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {services.map((service, index) => (
-                <ServiceCard
-                  key={index}
-                  title={service.title}
-                  description={service.description}
-                  icon={service.icon}
-                  features={service.features}
-                />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : services.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {services.map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    title={service.name}
+                    description={service.description || ""}
+                    icon={iconMap[service.icon] || Globe}
+                    features={service.features || []}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No services available at the moment.</p>
+              </div>
+            )}
           </div>
         </section>
 
