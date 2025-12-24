@@ -98,12 +98,15 @@ const AdminCustomization = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="contact">Contact Info</TabsTrigger>
+          <TabsTrigger value="typography">Typography</TabsTrigger>
+          <TabsTrigger value="contact">Contact</TabsTrigger>
           <TabsTrigger value="homepage">Homepage</TabsTrigger>
+          <TabsTrigger value="navbar">Navbar</TabsTrigger>
           <TabsTrigger value="footer">Footer</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
         {/* General Settings */}
@@ -512,6 +515,161 @@ const AdminCustomization = () => {
                 <Switch
                   checked={settings.show_newsletter === "true"}
                   onCheckedChange={(checked) => updateSetting("show_newsletter", checked ? "true" : "false")}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Typography */}
+        <TabsContent value="typography" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Type className="w-5 h-5" />
+                Typography Settings
+              </CardTitle>
+              <CardDescription>Customize fonts and text styles</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Heading Font</Label>
+                  <Input
+                    value={settings.heading_font || "Space Grotesk"}
+                    onChange={(e) => updateSetting("heading_font", e.target.value)}
+                    placeholder="Space Grotesk"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Body Font</Label>
+                  <Input
+                    value={settings.body_font || "Inter"}
+                    onChange={(e) => updateSetting("body_font", e.target.value)}
+                    placeholder="Inter"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Base Font Size</Label>
+                  <Input
+                    value={settings.base_font_size || "16px"}
+                    onChange={(e) => updateSetting("base_font_size", e.target.value)}
+                    placeholder="16px"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Line Height</Label>
+                  <Input
+                    value={settings.line_height || "1.6"}
+                    onChange={(e) => updateSetting("line_height", e.target.value)}
+                    placeholder="1.6"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Letter Spacing</Label>
+                  <Input
+                    value={settings.letter_spacing || "normal"}
+                    onChange={(e) => updateSetting("letter_spacing", e.target.value)}
+                    placeholder="normal"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Navbar */}
+        <TabsContent value="navbar" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Navigation Settings</CardTitle>
+              <CardDescription>Customize the navigation bar</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Sticky Navbar</Label>
+                  <p className="text-sm text-muted-foreground">Keep navbar fixed at top</p>
+                </div>
+                <Switch
+                  checked={settings.sticky_navbar !== "false"}
+                  onCheckedChange={(checked) => updateSetting("sticky_navbar", checked ? "true" : "false")}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Show Logo</Label>
+                  <p className="text-sm text-muted-foreground">Display logo in navbar</p>
+                </div>
+                <Switch
+                  checked={settings.show_navbar_logo !== "false"}
+                  onCheckedChange={(checked) => updateSetting("show_navbar_logo", checked ? "true" : "false")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>CTA Button Text</Label>
+                <Input
+                  value={settings.navbar_cta_text || "Get Support"}
+                  onChange={(e) => updateSetting("navbar_cta_text", e.target.value)}
+                  placeholder="Get Support"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>CTA Button Link</Label>
+                <Input
+                  value={settings.navbar_cta_link || "/contact"}
+                  onChange={(e) => updateSetting("navbar_cta_link", e.target.value)}
+                  placeholder="/contact"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Advanced */}
+        <TabsContent value="advanced" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Advanced Settings</CardTitle>
+              <CardDescription>Advanced customization options</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Custom CSS</Label>
+                <Textarea
+                  value={settings.custom_css || ""}
+                  onChange={(e) => updateSetting("custom_css", e.target.value)}
+                  placeholder="/* Add custom CSS here */"
+                  rows={6}
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Head Scripts (Analytics, etc.)</Label>
+                <Textarea
+                  value={settings.head_scripts || ""}
+                  onChange={(e) => updateSetting("head_scripts", e.target.value)}
+                  placeholder="<!-- Google Analytics, etc. -->"
+                  rows={4}
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>GST Number</Label>
+                <Input
+                  value={settings.gst_number || ""}
+                  onChange={(e) => updateSetting("gst_number", e.target.value)}
+                  placeholder="Your GST number for invoices"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Default Currency Symbol</Label>
+                <Input
+                  value={settings.currency_symbol || "₹"}
+                  onChange={(e) => updateSetting("currency_symbol", e.target.value)}
+                  placeholder="₹"
                 />
               </div>
             </CardContent>
