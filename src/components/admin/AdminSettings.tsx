@@ -165,21 +165,21 @@ const AdminSettings = () => {
         </div>
       </div>
 
-      {/* Company Info */}
+      {/* Contact Information */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Company Information</h3>
+        <h3 className="text-lg font-semibold text-foreground">Contact Information</h3>
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
+            <label className="block text-sm font-medium mb-2">Primary Email</label>
             <div className="flex gap-2">
               <Input
-                value={settings.company_email || ""}
-                onChange={(e) => handleInputChange("company_email", e.target.value)}
+                value={settings.contact_email || ""}
+                onChange={(e) => handleInputChange("contact_email", e.target.value)}
                 placeholder="info@company.com"
               />
               <Button 
-                onClick={() => updateSetting("company_email", settings.company_email || "")}
+                onClick={() => updateSetting("contact_email", settings.contact_email || "")}
                 disabled={saving}
               >
                 <Save className="w-4 h-4" />
@@ -188,15 +188,49 @@ const AdminSettings = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Phone</label>
+            <label className="block text-sm font-medium mb-2">Secondary Email</label>
             <div className="flex gap-2">
               <Input
-                value={settings.company_phone || ""}
-                onChange={(e) => handleInputChange("company_phone", e.target.value)}
+                value={settings.contact_email_2 || ""}
+                onChange={(e) => handleInputChange("contact_email_2", e.target.value)}
+                placeholder="support@company.com"
+              />
+              <Button 
+                onClick={() => updateSetting("contact_email_2", settings.contact_email_2 || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Primary Phone</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.contact_phone || ""}
+                onChange={(e) => handleInputChange("contact_phone", e.target.value)}
                 placeholder="+91 12345 67890"
               />
               <Button 
-                onClick={() => updateSetting("company_phone", settings.company_phone || "")}
+                onClick={() => updateSetting("contact_phone", settings.contact_phone || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Secondary Phone</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.contact_phone_2 || ""}
+                onChange={(e) => handleInputChange("contact_phone_2", e.target.value)}
+                placeholder="+91 98765 43210"
+              />
+              <Button 
+                onClick={() => updateSetting("contact_phone_2", settings.contact_phone_2 || "")}
                 disabled={saving}
               >
                 <Save className="w-4 h-4" />
@@ -208,13 +242,106 @@ const AdminSettings = () => {
             <label className="block text-sm font-medium mb-2">Address</label>
             <div className="flex gap-2">
               <Textarea
-                value={settings.company_address || ""}
-                onChange={(e) => handleInputChange("company_address", e.target.value)}
+                value={settings.contact_address || ""}
+                onChange={(e) => handleInputChange("contact_address", e.target.value)}
                 placeholder="123 Tech Park, City, State, Country"
                 rows={2}
               />
               <Button 
-                onClick={() => updateSetting("company_address", settings.company_address || "")}
+                onClick={() => updateSetting("contact_address", settings.contact_address || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Business Hours</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.business_hours || ""}
+                onChange={(e) => handleInputChange("business_hours", e.target.value)}
+                placeholder="Mon-Sat: 9AM - 6PM"
+              />
+              <Button 
+                onClick={() => updateSetting("business_hours", settings.business_hours || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Google Maps Embed URL</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.google_maps_url || ""}
+                onChange={(e) => handleInputChange("google_maps_url", e.target.value)}
+                placeholder="https://www.google.com/maps/embed?..."
+              />
+              <Button 
+                onClick={() => updateSetting("google_maps_url", settings.google_maps_url || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Company Info */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Company Information</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Company Name</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.company_name || ""}
+                onChange={(e) => handleInputChange("company_name", e.target.value)}
+                placeholder="Krishna Tech Solutions"
+              />
+              <Button 
+                onClick={() => updateSetting("company_name", settings.company_name || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Tagline</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.company_tagline || ""}
+                onChange={(e) => handleInputChange("company_tagline", e.target.value)}
+                placeholder="Your trusted tech partner"
+              />
+              <Button 
+                onClick={() => updateSetting("company_tagline", settings.company_tagline || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">About Description</label>
+            <div className="flex gap-2">
+              <Textarea
+                value={settings.company_about || ""}
+                onChange={(e) => handleInputChange("company_about", e.target.value)}
+                placeholder="Brief description about your company..."
+                rows={3}
+              />
+              <Button 
+                onClick={() => updateSetting("company_about", settings.company_about || "")}
                 disabled={saving}
               >
                 <Save className="w-4 h-4" />

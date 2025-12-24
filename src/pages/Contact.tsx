@@ -12,6 +12,10 @@ interface Service {
   name: string;
 }
 
+interface Settings {
+  [key: string]: string;
+}
+
 const Contact = () => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -23,9 +27,11 @@ const Contact = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
+  const [settings, setSettings] = useState<Settings>({});
 
   useEffect(() => {
     fetchServices();
+    fetchSettings();
   }, []);
 
   const fetchServices = async () => {
@@ -37,6 +43,17 @@ const Contact = () => {
     if (data) setServices(data);
   };
 
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("site_settings").select("key, value");
+    if (data) {
+      const settingsObj: Settings = {};
+      data.forEach((s) => {
+        settingsObj[s.key] = s.value;
+      });
+      setSettings(settingsObj);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -45,15 +62,30 @@ const Contact = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    toast({
-      title: "Message Sent! ✓",
-      description: "We'll get back to you within 24 hours.",
+    // Save message to database
+    const { error } = await supabase.from("contact_messages").insert({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      subject: formData.service,
+      message: formData.message,
+      source: "contact_form",
     });
 
-    setFormData({ name: "", email: "", phone: "", service: "", message: "" });
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Message Sent! ✓",
+        description: "We'll get back to you within 24 hours.",
+      });
+      setFormData({ name: "", email: "", phone: "", service: "", message: "" });
+    }
+
     setIsSubmitting(false);
   };
 
@@ -61,22 +93,28 @@ const Contact = () => {
     {
       icon: Phone,
       title: "Phone",
-      details: ["+91 7026292525"],
+      details: [
+        settings.contact_phone || "+91 7026292525",
+        settings.contact_phone_2 || "",
+      ].filter(Boolean),
     },
     {
       icon: Mail,
       title: "Email",
-      details: ["info@krishnatechsolutions.com", "support@krishnatechsolutions.com"],
+      details: [
+        settings.contact_email || "info@krishnatechsolutions.com",
+        settings.contact_email_2 || "",
+      ].filter(Boolean),
     },
     {
       icon: MapPin,
       title: "Address",
-      details: ["Belgaum, Karnataka", "590014"],
+      details: [settings.contact_address || "Belgaum, Karnataka, 590014"],
     },
     {
       icon: Clock,
       title: "Working Hours",
-      details: ["Monday - Saturday", "9:00 AM - 8:00 PM"],
+      details: [settings.business_hours || "Monday - Saturday, 9:00 AM - 8:00 PM"],
     },
   ];
 
@@ -232,20 +270,36 @@ const Contact = () => {
                 ))}
               </div>
 
-              {/* Map Placeholder */}
-              <div className="rounded-xl md:rounded-2xl overflow-hidden border border-border h-48 md:h-64 bg-muted flex items-center justify-center">
-                <div className="text-center px-4">
-                  <MapPin className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground mx-auto mb-2 md:mb-3" />
-                  <p className="text-muted-foreground text-sm md:text-base">Belgaum, Karnataka - 590014</p>
-                  <a
-                    href="https://maps.google.com/?q=Belgaum+Karnataka+590014"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline text-xs md:text-sm"
-                  >
-                    Open in Google Maps →
-                  </a>
-                </div>
+              {/* Map */}
+              <div className="rounded-xl md:rounded-2xl overflow-hidden border border-border h-48 md:h-64 bg-muted">
+                {settings.google_maps_url ? (
+                  <iframe
+                    src={settings.google_maps_url}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center px-4">
+                      <MapPin className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground mx-auto mb-2 md:mb-3" />
+                      <p className="text-muted-foreground text-sm md:text-base">
+                        {settings.contact_address || "Belgaum, Karnataka - 590014"}
+                      </p>
+                      <a
+                        href={`https://maps.google.com/?q=${encodeURIComponent(settings.contact_address || "Belgaum Karnataka 590014")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-xs md:text-sm"
+                      >
+                        Open in Google Maps →
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -260,10 +314,10 @@ const Contact = () => {
               <h3 className="font-display text-xl md:text-2xl font-bold text-foreground mb-2">Need Immediate Assistance?</h3>
               <p className="text-muted-foreground text-sm md:text-base">Call us directly for urgent tech support.</p>
             </div>
-            <a href="tel:+917026292525" className="w-full lg:w-auto">
+            <a href={`tel:${settings.contact_phone || "+917026292525"}`} className="w-full lg:w-auto">
               <Button size="lg" className="w-full lg:w-auto">
                 <Phone className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                Call: +91 7026292525
+                Call: {settings.contact_phone || "+91 7026292525"}
               </Button>
             </a>
           </div>
