@@ -71,6 +71,36 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          key_name: string
+          key_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_name: string
+          key_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_name?: string
+          key_value?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -492,32 +522,38 @@ export type Database = {
       }
       technicians: {
         Row: {
+          address: string | null
           created_at: string | null
           email: string | null
           id: string
           is_active: boolean | null
           name: string
           phone: string | null
+          photo_url: string | null
           specialization: string | null
           updated_at: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
           name: string
           phone?: string | null
+          photo_url?: string | null
           specialization?: string | null
           updated_at?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
           phone?: string | null
+          photo_url?: string | null
           specialization?: string | null
           updated_at?: string | null
         }

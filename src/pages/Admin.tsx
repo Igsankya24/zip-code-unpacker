@@ -25,7 +25,8 @@ import {
   BarChart3,
   Lock,
   FileText,
-  Wrench
+  Wrench,
+  Key
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -43,6 +44,7 @@ import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminUserAccess from "@/components/admin/AdminUserAccess";
 import AdminInvoices from "@/components/admin/AdminInvoices";
 import AdminTechnicians from "@/components/admin/AdminTechnicians";
+import AdminApiKeys from "@/components/admin/AdminApiKeys";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -52,7 +54,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians";
+type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys";
 
 interface DashboardStats {
   totalUsers: number;
@@ -424,6 +426,7 @@ const Admin = () => {
     { id: "customization" as AdminTab, label: "Customization", icon: Paintbrush, visible: isSuperAdmin },
     { id: "user-permissions" as AdminTab, label: "User Roles", icon: UserCog, visible: isSuperAdmin },
     { id: "permissions" as AdminTab, label: "Admin Permissions", icon: Shield, visible: isSuperAdmin },
+    { id: "api-keys" as AdminTab, label: "API Keys", icon: Key, visible: isSuperAdmin },
     { id: "deletion-requests" as AdminTab, label: "Deletion Requests", icon: Trash2, badge: stats.pendingDeletionRequests, visible: isSuperAdmin },
     { id: "profile" as AdminTab, label: "My Profile", icon: UserCircle, visible: true },
     { id: "settings" as AdminTab, label: "Settings", icon: Settings, visible: permissions.can_view_settings },
@@ -543,6 +546,8 @@ const Admin = () => {
         return <AdminInvoices preSelectedAppointmentId={selectedAppointmentForInvoice} onClearSelection={() => setSelectedAppointmentForInvoice(null)} />;
       case "technicians":
         return <AdminTechnicians />;
+      case "api-keys":
+        return isSuperAdmin ? <AdminApiKeys /> : null;
       case "users":
         return <AdminUsers />;
       case "coupons":
