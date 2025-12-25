@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send, Check, X, CheckCircle, Receipt } from "lucide-react";
+import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send, Check, X, CheckCircle, Receipt, Search } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -51,6 +52,7 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
@@ -173,9 +175,14 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
     }
   };
 
-  const filteredAppointments = appointments.filter(
-    (a) => statusFilter === "all" || a.status === statusFilter
-  );
+  const filteredAppointments = appointments.filter((a) => {
+    const matchesStatus = statusFilter === "all" || a.status === statusFilter;
+    const matchesSearch = !searchQuery.trim() || 
+      (a.reference_id?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (a.user_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (a.user_email?.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesStatus && matchesSearch;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -224,7 +231,16 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-foreground">Appointments</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by ID or name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-48"
+            />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">

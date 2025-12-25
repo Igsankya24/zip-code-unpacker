@@ -181,6 +181,26 @@ const Chatbot = () => {
     }
   };
 
+  const handleCancelAppointment = async (appointmentId: string) => {
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", appointmentId);
+
+    if (error) {
+      setMessages((prev) => [
+        ...prev,
+        { type: "bot", text: `❌ Failed to cancel appointment. Please contact support at ${contactInfo.phone}` },
+      ]);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { type: "bot", text: `✅ Your appointment has been cancelled successfully.\n\nIf you'd like to book a new appointment, just say "Book Appointment".` },
+      ]);
+      toast({ title: "Appointment Cancelled", description: "Your appointment has been cancelled" });
+    }
+  };
+
   const handleTrackAppointment = async (refId: string) => {
     const formattedRefId = refId.trim().toUpperCase();
     setTrackingId(formattedRefId);
@@ -192,7 +212,7 @@ const Chatbot = () => {
       .eq("reference_id", formattedRefId)
       .maybeSingle();
 
-    // If not found, try partial match
+    // If not found, try partial match (e.g., just the number part)
     if (!appointment && !error) {
       const { data: partialMatch } = await supabase
         .from("appointments")
@@ -209,7 +229,7 @@ const Chatbot = () => {
         ...prev,
         {
           type: "bot",
-          text: `❌ No appointment found with reference ID: ${formattedRefId}\n\nPlease check the ID and try again. Reference IDs look like: KTS-YYMMDD-XXXX\n\nNeed help? Contact us at ${contactInfo.phone}`,
+          text: `❌ No appointment found with reference ID: ${formattedRefId}\n\nPlease check the ID and try again. Reference IDs look like: KTS-1001\n\nNeed help? Contact us at ${contactInfo.phone}`,
           showFallback: true,
         },
       ]);
@@ -221,20 +241,43 @@ const Chatbot = () => {
         cancelled: "❌",
       }[appointment.status] || "📋";
       
+      const statusLabel = {
+        pending: "PENDING (Awaiting Confirmation)",
+        confirmed: "CONFIRMED",
+        completed: "COMPLETED",
+        cancelled: "CANCELLED",
+      }[appointment.status] || appointment.status.toUpperCase();
+      
       const statusMessage = {
-        pending: "Your appointment is awaiting confirmation. We'll notify you soon!",
-        confirmed: "Your appointment is confirmed! See you then!",
-        completed: "This appointment has been completed. Thank you for choosing us!",
-        cancelled: "This appointment was cancelled. Please book a new one if needed.",
+        pending: "⏳ Your appointment is awaiting confirmation. We'll notify you soon!",
+        confirmed: "✅ Your appointment is CONFIRMED! See you then!",
+        completed: "🎉 This appointment has been completed. Thank you for choosing us!",
+        cancelled: "❌ This appointment was cancelled.",
       }[appointment.status] || "";
+
+      // Show cancel button only for pending or confirmed appointments
+      const canCancel = ["pending", "confirmed"].includes(appointment.status);
       
       setMessages((prev) => [
         ...prev,
         {
           type: "bot",
-          text: `${statusEmoji} Appointment Found!\n\n🆔 Reference: ${appointment.reference_id}\n📋 Service: ${(appointment.services as any)?.name || "N/A"}\n📅 Date: ${format(new Date(appointment.appointment_date), "PPP")}\n⏰ Time: ${appointment.appointment_time}\n📊 Status: ${appointment.status.toUpperCase()}\n\n${statusMessage}`,
+          text: `${statusEmoji} **Appointment Found!**\n\n🆔 Reference: ${appointment.reference_id}\n📋 Service: ${(appointment.services as any)?.name || "N/A"}\n📅 Date: ${format(new Date(appointment.appointment_date), "PPP")}\n⏰ Time: ${appointment.appointment_time}\n\n📊 **Status: ${statusLabel}**\n\n${statusMessage}`,
         },
       ]);
+
+      // If appointment can be cancelled, show cancel option
+      if (canCancel) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "bot",
+            text: `Would you like to cancel this appointment? Type "cancel" to proceed or "back" to go back.`,
+          },
+        ]);
+        // Store appointment ID for potential cancellation
+        sessionStorage.setItem("pending_cancel_appointment", appointment.id);
+      }
     }
     setStep("chat");
   };
@@ -254,8 +297,24 @@ const Chatbot = () => {
 
     const lowerInput = currentInput.toLowerCase();
     
-    // Check if input contains a reference ID pattern
-    const refMatch = currentInput.match(/KTS-\d{6}-\w{4}/i);
+    // Check for cancel confirmation
+    const pendingCancelId = sessionStorage.getItem("pending_cancel_appointment");
+    if (pendingCancelId && lowerInput === "cancel") {
+      sessionStorage.removeItem("pending_cancel_appointment");
+      await handleCancelAppointment(pendingCancelId);
+      return;
+    }
+    if (pendingCancelId && lowerInput === "back") {
+      sessionStorage.removeItem("pending_cancel_appointment");
+      setMessages((prev) => [
+        ...prev,
+        { type: "bot", text: "Okay, no changes made. How else can I help you?" },
+      ]);
+      return;
+    }
+    
+    // Check if input contains a reference ID pattern (KTS-XXXX format)
+    const refMatch = currentInput.match(/KTS-\d{4}/i);
     if (refMatch) {
       await handleTrackAppointment(refMatch[0]);
       return;
@@ -265,7 +324,7 @@ const Chatbot = () => {
       setTimeout(() => {
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-241224-abc1):" },
+          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-1001):" },
         ]);
         setStep("tracking");
       }, 500);
@@ -338,7 +397,7 @@ const Chatbot = () => {
       } else if (option === "Track Appointment") {
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-241224-abc1):" },
+          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-1001):\n\n💡 You can also type 'cancel' after tracking to cancel your appointment." },
         ]);
         setStep("tracking" as BookingStep);
       } else if (option === "Contact Us") {
