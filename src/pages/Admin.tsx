@@ -122,7 +122,7 @@ const Admin = () => {
       fetchStats();
       fetchNotifications();
     }
-  }, [isAdmin]);
+  }, [isAdmin, isSuperAdmin, user?.id]);
 
   const fetchStats = async () => {
     const [usersRes, servicesRes, appointmentsRes, couponsRes, messagesRes, deletionRes] = await Promise.all([
@@ -148,12 +148,22 @@ const Admin = () => {
   };
 
   const fetchNotifications = async () => {
-    const { data } = await supabase
+    // For admins, fetch notifications where user_id is null (admin notifications) or matches current user
+    // For super admins, also include all admin-targeted notifications
+    let query = supabase
       .from("notifications")
       .select("*")
-      .or(`user_id.eq.${user?.id},user_id.is.null`)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(20);
+    
+    if (isSuperAdmin) {
+      // Super admins see all notifications
+    } else {
+      // Regular admins see their own + null (broadcast) notifications
+      query = query.or(`user_id.eq.${user?.id},user_id.is.null`);
+    }
+
+    const { data } = await query;
 
     if (data) {
       setNotifications(data);
