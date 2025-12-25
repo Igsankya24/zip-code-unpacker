@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, FileSpreadsheet, FileText, File, Download, Trash2, Key, Shield, LogIn, CalendarCheck, Eye } from "lucide-react";
+import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, Trash2, Key, Shield, LogIn, CalendarCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
@@ -29,14 +29,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
-import { format } from "date-fns";
+import { format, parseISO, isWithinInterval } from "date-fns";
+import ExportDateRange from "./ExportDateRange";
 
 interface UserProfile {
   id: string;
@@ -155,18 +150,36 @@ const AdminUsers = () => {
     }
   };
 
-  const handleExport = (type: 'excel' | 'pdf' | 'word') => {
-    const exportData = filteredUsers.map(u => ({
+  const handleExport = (type: 'excel' | 'pdf' | 'word', fromDate: string | null, toDate: string | null) => {
+    let dataToExport = filteredUsers;
+
+    // Filter by date range if provided
+    if (fromDate && toDate) {
+      dataToExport = dataToExport.filter(u => {
+        const createdDate = parseISO(u.created_at);
+        return isWithinInterval(createdDate, {
+          start: parseISO(fromDate),
+          end: parseISO(toDate)
+        });
+      });
+    }
+
+    const exportData = dataToExport.map(u => ({
       Name: u.full_name || 'No name',
       Email: u.email || '-',
       Phone: u.phone || '-',
       Role: u.role || 'user',
+      Logins: u.login_count || 0,
+      Appointments: u.appointment_count || 0,
       Status: u.is_approved ? 'Approved' : 'Pending',
       Frozen: u.is_frozen ? 'Yes' : 'No',
       Created: format(new Date(u.created_at), "MMM d, yyyy")
     }));
 
-    const filename = `users_${format(new Date(), 'yyyy-MM-dd')}`;
+    const dateRangeStr = fromDate && toDate 
+      ? `_${fromDate}_to_${toDate}` 
+      : '';
+    const filename = `users${dateRangeStr}_${format(new Date(), 'yyyy-MM-dd')}`;
     
     switch (type) {
       case 'excel':
@@ -180,7 +193,7 @@ const AdminUsers = () => {
         break;
     }
     
-    toast({ title: "Success", description: `Exported to ${type.toUpperCase()}` });
+    toast({ title: "Success", description: `Exported ${exportData.length} records to ${type.toUpperCase()}` });
   };
 
   const toggleApproval = async (userId: string, currentStatus: boolean) => {
@@ -357,28 +370,7 @@ const AdminUsers = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-foreground">Users</h2>
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleExport('excel')}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Excel (.xlsx)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                <FileText className="w-4 h-4 mr-2" />
-                PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('word')}>
-                <File className="w-4 h-4 mr-2" />
-                Word (.doc)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ExportDateRange onExport={handleExport} />
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
