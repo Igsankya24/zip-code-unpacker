@@ -26,7 +26,8 @@ import {
   Lock,
   FileText,
   Wrench,
-  Key
+  Key,
+  ShieldAlert
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -53,6 +54,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys";
 
@@ -94,6 +104,7 @@ const Admin = () => {
   });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [accessDeniedOpen, setAccessDeniedOpen] = useState(false);
   const { user, isAdmin, isSuperAdmin, isLoading, signOut, permissions } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -119,9 +130,9 @@ const Admin = () => {
 
   useEffect(() => {
     if (!isLoading && user && !isAdmin) {
-      navigate("/admin");
+      setAccessDeniedOpen(true);
     }
-  }, [isAdmin, isLoading, user, navigate]);
+  }, [isAdmin, isLoading, user]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -406,7 +417,29 @@ const Admin = () => {
   }
 
   if (!user || !isAdmin) {
-    return null;
+    return (
+      <AlertDialog open={accessDeniedOpen} onOpenChange={setAccessDeniedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <ShieldAlert className="w-8 h-8 text-destructive" />
+            </div>
+            <AlertDialogTitle className="text-center">Access Restricted</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              You don't have permission to access the admin panel. Please contact your administrator if you believe this is an error.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction onClick={() => {
+              setAccessDeniedOpen(false);
+              navigate("/dashboard");
+            }}>
+              Go to Dashboard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
   }
 
 
