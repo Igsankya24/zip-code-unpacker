@@ -491,6 +491,8 @@ const Chatbot = () => {
 
     // Guest booking (no login): create an appointment row with user_id = NULL so it shows in admin appointments
     if (!currentUser) {
+      const guestNotes = `${notes} | Guest details: Name=${userDetails.name}, Email=${userDetails.email}, Phone=${userDetails.phone}`;
+
       const { data: appointment, error: appointmentError } = await supabase
         .from("appointments")
         .insert({
@@ -498,7 +500,8 @@ const Chatbot = () => {
           service_id: selectedService,
           appointment_date: appointmentDate,
           appointment_time: appointmentTime,
-          notes: `${notes} | Guest request (details stored in messages)`
+          notes: guestNotes,
+          status: "pending",
         })
         .select("id, reference_id")
         .single();
@@ -507,16 +510,6 @@ const Chatbot = () => {
         toast({ title: "Error", description: appointmentError?.message || "Failed to submit booking request", variant: "destructive" });
         return;
       }
-
-      // Store guest details privately in messages for admin follow-up
-      await supabase.from("contact_messages").insert({
-        name: userDetails.name,
-        email: userDetails.email,
-        phone: userDetails.phone,
-        subject: `📅 Guest Appointment Request: ${service?.name}${discountText} | Ref: ${appointment.reference_id || appointment.id.substring(0, 8)}`,
-        message: `Guest appointment request:\n\n🆔 Reference: ${appointment.reference_id || "(pending)"}\n📋 Service: ${service?.name}\n📅 Date: ${appointmentDate}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}\n📧 Email: ${userDetails.email}\n📱 Phone: ${userDetails.phone}${appliedCoupon ? `\n🎟️ Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}`,
-        source: "chatbot_booking",
-      });
 
       if (appliedCoupon) {
         await supabase
