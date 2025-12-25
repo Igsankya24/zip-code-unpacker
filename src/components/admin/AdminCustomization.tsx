@@ -150,16 +150,6 @@ const AdminCustomization = () => {
                   rows={3}
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Maintenance Mode</Label>
-                  <p className="text-sm text-muted-foreground">Show maintenance page to visitors</p>
-                </div>
-                <Switch
-                  checked={settings.maintenance_mode === "true"}
-                  onCheckedChange={(checked) => updateSetting("maintenance_mode", checked ? "true" : "false")}
-                />
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
