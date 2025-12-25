@@ -43,6 +43,7 @@ import AdminUserAccess from "@/components/admin/AdminUserAccess";
 import AdminInvoices from "@/components/admin/AdminInvoices";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   Popover,
   PopoverContent,
@@ -91,6 +92,7 @@ const Admin = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { user, isAdmin, isSuperAdmin, isLoading, signOut, permissions } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Define handleSignOut BEFORE any early returns (hooks must be unconditional)
   const handleSignOut = useCallback(async () => {
@@ -123,6 +125,123 @@ const Admin = () => {
       fetchNotifications();
     }
   }, [isAdmin, isSuperAdmin, user?.id]);
+
+  // Real-time subscriptions for notifications, appointments, and messages
+  useEffect(() => {
+    if (!isAdmin || !user?.id) return;
+
+    console.log("Setting up real-time subscriptions...");
+
+    // Subscribe to notifications
+    const notificationsChannel = supabase
+      .channel('admin-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications'
+        },
+        (payload) => {
+          console.log("New notification:", payload);
+          fetchNotifications();
+          const newNotification = payload.new as any;
+          if (newNotification?.title) {
+            toast({
+              title: "🔔 " + newNotification.title,
+              description: newNotification.message,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to appointments
+    const appointmentsChannel = supabase
+      .channel('admin-appointments')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log("New appointment:", payload);
+          fetchStats();
+          toast({
+            title: "📅 New Appointment",
+            description: "A new appointment has been booked!",
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log("Appointment updated:", payload);
+          fetchStats();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to contact messages
+    const messagesChannel = supabase
+      .channel('admin-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'contact_messages'
+        },
+        (payload) => {
+          console.log("New message:", payload);
+          fetchStats();
+          const newMessage = payload.new as any;
+          toast({
+            title: "💬 New Message",
+            description: newMessage?.source === "chatbot_booking" 
+              ? "New guest booking request received!" 
+              : "New contact message received!",
+          });
+        }
+      )
+      .subscribe();
+
+    // Subscribe to profiles (for new user registrations)
+    const profilesChannel = supabase
+      .channel('admin-profiles')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log("New user registered:", payload);
+          fetchStats();
+          toast({
+            title: "👤 New User",
+            description: "A new user has registered!",
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("Cleaning up real-time subscriptions...");
+      supabase.removeChannel(notificationsChannel);
+      supabase.removeChannel(appointmentsChannel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(profilesChannel);
+    };
+  }, [isAdmin, user?.id, toast]);
 
   const fetchStats = async () => {
     const [usersRes, servicesRes, appointmentsRes, couponsRes, messagesRes, deletionRes] = await Promise.all([
