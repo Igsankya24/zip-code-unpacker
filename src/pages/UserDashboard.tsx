@@ -4,16 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle, XCircle, Calendar, LogOut, Home, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-
-interface UserAccess {
-  can_book_appointments: boolean;
-  can_apply_coupons: boolean;
-  can_use_chatbot: boolean;
-  can_view_services: boolean;
-  can_contact_support: boolean;
-}
+import { toast } from "sonner";
 
 interface Appointment {
   id: string;
@@ -30,10 +25,10 @@ interface Appointment {
 const UserDashboard = () => {
   const { user, isApproved, isLoading, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [userAccess, setUserAccess] = useState<UserAccess | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -67,27 +62,8 @@ const UserDashboard = () => {
     if (!user) return;
     setLoadingData(true);
 
-    // Fetch profile
     await fetchProfile();
 
-    // Fetch user access permissions
-    const { data: accessData } = await supabase
-      .from("user_access")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (accessData) {
-      setUserAccess({
-        can_book_appointments: accessData.can_book_appointments ?? false,
-        can_apply_coupons: accessData.can_apply_coupons ?? false,
-        can_use_chatbot: accessData.can_use_chatbot ?? false,
-        can_view_services: accessData.can_view_services ?? false,
-        can_contact_support: accessData.can_contact_support ?? false,
-      });
-    }
-
-    // Fetch user appointments - both directly linked and via chatbot
     const { data: appointmentsData, error: appointmentsError } = await supabase
       .from("appointments")
       .select("id, reference_id, service_id, appointment_date, appointment_time, status, notes")
@@ -124,29 +100,32 @@ const UserDashboard = () => {
     setLoadingData(false);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case "completed":
-        return <CheckCircle className="w-4 h-4 text-blue-500" />;
-      case "cancelled":
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-yellow-500" />;
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    setUpdatingId(id);
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: newStatus })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to update appointment status");
+    } else {
+      toast.success(`Appointment ${newStatus}`);
+      fetchUserData();
     }
+    setUpdatingId(null);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "confirmed":
-        return "bg-green-500/10 text-green-500";
+        return <Badge className="bg-green-500/10 text-green-500 border-green-500/30">Confirmed</Badge>;
       case "completed":
-        return "bg-blue-500/10 text-blue-500";
+        return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30">Completed</Badge>;
       case "cancelled":
-        return "bg-red-500/10 text-red-500";
+        return <Badge className="bg-red-500/10 text-red-500 border-red-500/30">Cancelled</Badge>;
       default:
-        return "bg-yellow-500/10 text-yellow-500";
+        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">Pending</Badge>;
     }
   };
 
@@ -161,7 +140,6 @@ const UserDashboard = () => {
     );
   }
 
-  // Not approved - show pending message
   if (!isApproved) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 px-4">
@@ -197,11 +175,10 @@ const UserDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="bg-card border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-foreground">User Dashboard</h1>
+            <h1 className="text-xl font-bold text-foreground">My Appointments</h1>
             <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || profile?.email}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -218,50 +195,6 @@ const UserDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Access Permissions */}
-        {userAccess && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg">Your Access Permissions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className={`p-3 rounded-lg text-center ${userAccess.can_view_services ? "bg-green-500/10" : "bg-muted"}`}>
-                  <p className="text-sm font-medium">View Services</p>
-                  <p className={`text-xs ${userAccess.can_view_services ? "text-green-500" : "text-muted-foreground"}`}>
-                    {userAccess.can_view_services ? "Enabled" : "Disabled"}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-lg text-center ${userAccess.can_book_appointments ? "bg-green-500/10" : "bg-muted"}`}>
-                  <p className="text-sm font-medium">Book Appointments</p>
-                  <p className={`text-xs ${userAccess.can_book_appointments ? "text-green-500" : "text-muted-foreground"}`}>
-                    {userAccess.can_book_appointments ? "Enabled" : "Disabled"}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-lg text-center ${userAccess.can_apply_coupons ? "bg-green-500/10" : "bg-muted"}`}>
-                  <p className="text-sm font-medium">Apply Coupons</p>
-                  <p className={`text-xs ${userAccess.can_apply_coupons ? "text-green-500" : "text-muted-foreground"}`}>
-                    {userAccess.can_apply_coupons ? "Enabled" : "Disabled"}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-lg text-center ${userAccess.can_use_chatbot ? "bg-green-500/10" : "bg-muted"}`}>
-                  <p className="text-sm font-medium">Use Chatbot</p>
-                  <p className={`text-xs ${userAccess.can_use_chatbot ? "text-green-500" : "text-muted-foreground"}`}>
-                    {userAccess.can_use_chatbot ? "Enabled" : "Disabled"}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-lg text-center ${userAccess.can_contact_support ? "bg-green-500/10" : "bg-muted"}`}>
-                  <p className="text-sm font-medium">Contact Support</p>
-                  <p className={`text-xs ${userAccess.can_contact_support ? "text-green-500" : "text-muted-foreground"}`}>
-                    {userAccess.can_contact_support ? "Enabled" : "Disabled"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Appointments */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -279,45 +212,83 @@ const UserDashboard = () => {
                 You haven't booked any appointments yet.
               </p>
             ) : (
-              <div className="space-y-4">
-                {appointments.map((appointment) => (
-                  <div
-                    key={appointment.id}
-                    className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border"
-                  >
-                    <div className="flex items-center gap-4">
-                      {getStatusIcon(appointment.status)}
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {appointment.service_name || "Service"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(appointment.appointment_date), "PPP")} at{" "}
-                          {appointment.appointment_time}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          {appointment.reference_id && (
-                            <span className="text-xs text-muted-foreground font-mono">
-                              Ref: {appointment.reference_id}
-                            </span>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {appointments.map((appointment) => (
+                      <TableRow key={appointment.id}>
+                        <TableCell className="font-mono text-sm">
+                          {appointment.reference_id || "-"}
+                        </TableCell>
+                        <TableCell>{appointment.service_name || "Service"}</TableCell>
+                        <TableCell>
+                          {format(new Date(appointment.appointment_date), "PPP")}
+                        </TableCell>
+                        <TableCell>{appointment.appointment_time}</TableCell>
+                        <TableCell>
+                          {appointment.source === "chatbot" ? (
+                            <Badge variant="outline" className="text-xs">Chatbot</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">Booking</Badge>
                           )}
-                          {appointment.source === "chatbot" && (
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                              via Chatbot
-                            </span>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(appointment.status)}</TableCell>
+                        <TableCell className="text-right">
+                          {appointment.status === "pending" && (
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-600 hover:bg-green-500/10"
+                                onClick={() => handleUpdateStatus(appointment.id, "confirmed")}
+                                disabled={updatingId === appointment.id}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Confirm
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:bg-red-500/10"
+                                onClick={() => handleUpdateStatus(appointment.id, "cancelled")}
+                                disabled={updatingId === appointment.id}
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
                           )}
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        appointment.status
-                      )}`}
-                    >
-                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                    </span>
-                  </div>
-                ))}
+                          {appointment.status === "confirmed" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:bg-red-500/10"
+                              onClick={() => handleUpdateStatus(appointment.id, "cancelled")}
+                              disabled={updatingId === appointment.id}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Cancel
+                            </Button>
+                          )}
+                          {(appointment.status === "cancelled" || appointment.status === "completed") && (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
