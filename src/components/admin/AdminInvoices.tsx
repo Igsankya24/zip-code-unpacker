@@ -216,11 +216,32 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
     }
   };
 
-  const generateInvoiceNumber = () => {
-    const prefix = "INV";
-    const date = format(new Date(), "yyMMdd");
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${date}-${random}`;
+  const generateInvoiceNumber = async () => {
+    // Get current financial year (April to March)
+    const now = new Date();
+    const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const nextYear = (year + 1).toString().slice(-2);
+    const currentYear = year.toString().slice(-2);
+    const prefix = `Inv-${currentYear}-${nextYear}/KTS`;
+    
+    // Get the latest invoice number with this prefix to determine serial
+    const { data: latestInvoice } = await supabase
+      .from("invoices")
+      .select("invoice_number")
+      .ilike("invoice_number", `${prefix}-%`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    let serialNumber = 1;
+    if (latestInvoice?.invoice_number) {
+      const match = latestInvoice.invoice_number.match(/-(\d{3})$/);
+      if (match) {
+        serialNumber = parseInt(match[1]) + 1;
+      }
+    }
+    
+    return `${prefix}-${serialNumber.toString().padStart(3, '0')}`;
   };
 
   // Parse discount from appointment notes
@@ -242,7 +263,7 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
     return { discountPercent: 0, couponCode: null };
   };
 
-  const handleSelectAppointment = (appointmentId: string) => {
+  const handleSelectAppointment = async (appointmentId: string) => {
     setSelectedAppointment(appointmentId);
     const apt = appointments.find((a) => a.id === appointmentId);
     if (apt) {
@@ -268,9 +289,11 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
       const taxAmount = (subtotal * invoice.taxRate) / 100;
       const total = subtotal + taxAmount;
 
+      const invoiceNumber = await generateInvoiceNumber();
+
       setInvoice({
         ...invoice,
-        invoiceNumber: generateInvoiceNumber(),
+        invoiceNumber,
         customerName: apt.user.full_name || "",
         customerEmail: apt.user.email || "",
         customerPhone: apt.user.phone || "",

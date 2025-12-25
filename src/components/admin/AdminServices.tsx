@@ -5,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Eye, EyeOff, GripVertical } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Plus, Pencil, Trash2, Eye, EyeOff, GripVertical, Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 interface Service {
@@ -36,6 +38,9 @@ const AdminServices = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -48,6 +53,7 @@ const AdminServices = () => {
     is_visible: true,
   });
   const { toast } = useToast();
+  const { user, isSuperAdmin, permissions } = useAuth();
 
   useEffect(() => {
     fetchServices();
@@ -160,8 +166,6 @@ const AdminServices = () => {
   };
 
   const deleteService = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this service?")) return;
-
     const { error } = await supabase.from("services").delete().eq("id", id);
 
     if (error) {
@@ -169,6 +173,45 @@ const AdminServices = () => {
     } else {
       toast({ title: "Success", description: "Service deleted successfully" });
       fetchServices();
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!selectedService || !user) return;
+
+    const { error } = await supabase.from("deletion_requests").insert({
+      request_type: "service",
+      target_id: selectedService.id,
+      requested_by: user.id,
+      reason: deleteReason,
+    });
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Deletion request sent to Super Admin" });
+      
+      // Create notification for super admins
+      await supabase.from("notifications").insert({
+        title: "Service Deletion Request",
+        message: `Admin requested deletion of service: ${selectedService.name}`,
+        type: "warning"
+      });
+    }
+
+    setDeleteRequestDialog(false);
+    setSelectedService(null);
+    setDeleteReason("");
+  };
+
+  const handleDeleteClick = (service: Service) => {
+    if (isSuperAdmin || permissions.can_manage_services) {
+      if (confirm("Are you sure you want to delete this service?")) {
+        deleteService(service.id);
+      }
+    } else {
+      setSelectedService(service);
+      setDeleteRequestDialog(true);
     }
   };
 
@@ -319,8 +362,17 @@ const AdminServices = () => {
                       <Button variant="ghost" size="sm" onClick={() => openEditDialog(service)} title="Edit">
                         <Pencil className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteService(service.id)} title="Delete">
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDeleteClick(service)} 
+                        title={isSuperAdmin || permissions.can_manage_services ? "Delete" : "Request deletion"}
+                      >
+                        {isSuperAdmin || permissions.can_manage_services ? (
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        ) : (
+                          <Send className="w-4 h-4 text-orange-500" />
+                        )}
                       </Button>
                     </div>
                   </td>
@@ -337,6 +389,45 @@ const AdminServices = () => {
           </table>
         </div>
       </div>
+
+      {/* Deletion Request Dialog */}
+      <Dialog open={deleteRequestDialog} onOpenChange={setDeleteRequestDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Service Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-sm">
+              You don't have permission to delete services directly. 
+              Your request will be sent to a Super Admin for approval.
+            </p>
+            {selectedService && (
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="text-sm"><strong>Service:</strong> {selectedService.name}</p>
+                <p className="text-sm"><strong>Price:</strong> {selectedService.price ? `₹${selectedService.price}` : '-'}</p>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium mb-2">Reason for deletion</label>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Explain why this service should be deleted..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRequestDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={requestDeletion}>
+              <Send className="w-4 h-4 mr-2" />
+              Send Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

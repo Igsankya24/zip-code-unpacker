@@ -85,6 +85,12 @@ const Chatbot = () => {
     setMessages([{ type: "bot", text: welcomeMessage }]);
   }, [welcomeMessage]);
 
+  const [contactInfo, setContactInfo] = useState({
+    phone: "+91 7026292525",
+    email: "krishnatechsolutions2024@gmail.com",
+    address: "Main Road, Karnataka"
+  });
+
   const fetchSettings = async () => {
     const { data } = await supabase
       .from("site_settings")
@@ -95,6 +101,9 @@ const Chatbot = () => {
         "bot_whatsapp_message",
         "bot_show_services_fallback",
         "bot_whatsapp_fallback",
+        "contact_phone",
+        "contact_email",
+        "contact_address",
       ]);
     
     if (data) {
@@ -113,6 +122,15 @@ const Chatbot = () => {
         }
         if (setting.key === "bot_whatsapp_fallback") {
           setBotSettings((prev) => ({ ...prev, whatsappFallbackEnabled: setting.value === "true" }));
+        }
+        if (setting.key === "contact_phone" && setting.value) {
+          setContactInfo((prev) => ({ ...prev, phone: setting.value }));
+        }
+        if (setting.key === "contact_email" && setting.value) {
+          setContactInfo((prev) => ({ ...prev, email: setting.value }));
+        }
+        if (setting.key === "contact_address" && setting.value) {
+          setContactInfo((prev) => ({ ...prev, address: setting.value }));
         }
       });
     }
@@ -163,62 +181,87 @@ const Chatbot = () => {
     }
   };
 
+  const handleTrackAppointment = async (refId: string) => {
+    const formattedRefId = refId.trim().toUpperCase();
+    setTrackingId(formattedRefId);
+    
+    // Try exact match first
+    let { data: appointment, error } = await supabase
+      .from("appointments")
+      .select("*, services(name)")
+      .eq("reference_id", formattedRefId)
+      .maybeSingle();
+
+    // If not found, try partial match
+    if (!appointment && !error) {
+      const { data: partialMatch } = await supabase
+        .from("appointments")
+        .select("*, services(name)")
+        .ilike("reference_id", `%${formattedRefId}%`)
+        .limit(1)
+        .maybeSingle();
+      
+      appointment = partialMatch;
+    }
+
+    if (error || !appointment) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: `❌ No appointment found with reference ID: ${formattedRefId}\n\nPlease check the ID and try again. Reference IDs look like: KTS-YYMMDD-XXXX\n\nNeed help? Contact us at ${contactInfo.phone}`,
+          showFallback: true,
+        },
+      ]);
+    } else {
+      const statusEmoji = {
+        pending: "🕐",
+        confirmed: "✅",
+        completed: "🎉",
+        cancelled: "❌",
+      }[appointment.status] || "📋";
+      
+      const statusMessage = {
+        pending: "Your appointment is awaiting confirmation. We'll notify you soon!",
+        confirmed: "Your appointment is confirmed! See you then!",
+        completed: "This appointment has been completed. Thank you for choosing us!",
+        cancelled: "This appointment was cancelled. Please book a new one if needed.",
+      }[appointment.status] || "";
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: `${statusEmoji} Appointment Found!\n\n🆔 Reference: ${appointment.reference_id}\n📋 Service: ${(appointment.services as any)?.name || "N/A"}\n📅 Date: ${format(new Date(appointment.appointment_date), "PPP")}\n⏰ Time: ${appointment.appointment_time}\n📊 Status: ${appointment.status.toUpperCase()}\n\n${statusMessage}`,
+        },
+      ]);
+    }
+    setStep("chat");
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    setMessages([...messages, { type: "user", text: input }]);
+    const currentInput = input.trim();
+    setMessages([...messages, { type: "user", text: currentInput }]);
+    setInput("");
 
     // Handle tracking step
     if (step === "tracking") {
-      const refId = input.trim().toUpperCase();
-      setTrackingId(refId);
-      
-      const { data: appointment, error } = await supabase
-        .from("appointments")
-        .select("*, services(name)")
-        .eq("reference_id", refId)
-        .maybeSingle();
-
-      if (error || !appointment) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "bot",
-            text: `❌ No appointment found with reference ID: ${refId}\n\nPlease check the ID and try again, or contact us for help.`,
-            showFallback: true,
-          },
-        ]);
-      } else {
-        const statusEmoji = {
-          pending: "🕐",
-          confirmed: "✅",
-          completed: "🎉",
-          cancelled: "❌",
-        }[appointment.status] || "📋";
-        
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "bot",
-            text: `${statusEmoji} Appointment Found!\n\n🆔 Reference: ${appointment.reference_id}\n📋 Service: ${(appointment.services as any)?.name || "N/A"}\n📅 Date: ${format(new Date(appointment.appointment_date), "PPP")}\n⏰ Time: ${appointment.appointment_time}\n📊 Status: ${appointment.status.toUpperCase()}\n\n${appointment.status === "pending" ? "Your appointment is awaiting confirmation." : appointment.status === "confirmed" ? "Your appointment is confirmed!" : appointment.status === "completed" ? "This appointment has been completed. Thank you!" : "This appointment was cancelled."}`,
-          },
-        ]);
-      }
-      setStep("chat");
-      setInput("");
+      await handleTrackAppointment(currentInput);
       return;
     }
 
-    const lowerInput = input.toLowerCase();
-    if (lowerInput.includes("track") || lowerInput.includes("status") || lowerInput.includes("kts-")) {
-      // Check if input contains a reference ID
-      const refMatch = input.match(/KTS-\d{6}-\w{4}/i);
-      if (refMatch) {
-        setInput(refMatch[0]);
-        setStep("tracking");
-        handleSend();
-        return;
-      }
+    const lowerInput = currentInput.toLowerCase();
+    
+    // Check if input contains a reference ID pattern
+    const refMatch = currentInput.match(/KTS-\d{6}-\w{4}/i);
+    if (refMatch) {
+      await handleTrackAppointment(refMatch[0]);
+      return;
+    }
+    
+    if (lowerInput.includes("track") || lowerInput.includes("status")) {
       setTimeout(() => {
         setMessages((prev) => [
           ...prev,
@@ -248,11 +291,18 @@ const Chatbot = () => {
           },
         ]);
       }, 500);
+    } else if (lowerInput.includes("contact") || lowerInput.includes("address") || lowerInput.includes("phone") || lowerInput.includes("email")) {
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", text: `📞 Phone: ${contactInfo.phone}\n📧 Email: ${contactInfo.email}\n📍 Address: ${contactInfo.address}\n\nOr leave us a message and we'll get back to you!` },
+        ]);
+      }, 500);
     } else {
       await supabase.from("contact_messages").insert({
         name: "Chat User",
         email: "chatbot@temp.com",
-        message: input,
+        message: currentInput,
         source: "chatbot",
       });
 
@@ -267,8 +317,6 @@ const Chatbot = () => {
         ]);
       }, 1000);
     }
-
-    setInput("");
   };
 
   const handleQuickOption = (option: string) => {
@@ -296,7 +344,7 @@ const Chatbot = () => {
       } else if (option === "Contact Us") {
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: "📞 Phone: +91 7026292525\n📧 Email: krishnatechsolutions2024@gmail.com\n📍 Address: Main Road, Karnataka\n\nOr leave us a message and we'll get back to you!" },
+          { type: "bot", text: `📞 Phone: ${contactInfo.phone}\n📧 Email: ${contactInfo.email}\n📍 Address: ${contactInfo.address}\n\nOr leave us a message and we'll get back to you!` },
         ]);
       }
     }, 800);
