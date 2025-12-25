@@ -36,7 +36,7 @@ interface AdminAppointmentsProps {
 interface Appointment {
   id: string;
   reference_id: string | null;
-  user_id: string;
+  user_id: string | null;
   service_id: string | null;
   appointment_date: string;
   appointment_time: string;
@@ -61,6 +61,19 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
 
   useEffect(() => {
     fetchAppointments();
+
+    const channel = supabase
+      .channel("admin-appointments-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointments" },
+        () => fetchAppointments()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchAppointments = async () => {
@@ -77,11 +90,13 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       return;
     }
 
-    const userIds = [...new Set(appointmentsData?.map(a => a.user_id) || [])];
+    const userIds = [...new Set((appointmentsData?.map(a => a.user_id).filter(Boolean) as string[]) || [])];
     const serviceIds = [...new Set(appointmentsData?.filter(a => a.service_id).map(a => a.service_id) || [])];
 
     const [profilesRes, servicesRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, email, full_name").in("user_id", userIds),
+      userIds.length > 0
+        ? supabase.from("profiles").select("user_id, email, full_name").in("user_id", userIds)
+        : { data: [] as any[] },
       serviceIds.length > 0 ? supabase.from("services").select("id, name").in("id", serviceIds) : { data: [] },
     ]);
 
@@ -97,8 +112,8 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
 
     const enrichedAppointments = appointmentsData?.map(a => ({
       ...a,
-      user_email: profilesMap[a.user_id]?.email,
-      user_name: profilesMap[a.user_id]?.name,
+      user_email: a.user_id ? profilesMap[a.user_id]?.email : undefined,
+      user_name: a.user_id ? profilesMap[a.user_id]?.name : "Guest",
       service_name: a.service_id ? servicesMap[a.service_id] : undefined,
     })) || [];
 

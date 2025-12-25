@@ -82,7 +82,7 @@ export type Database = {
           service_id: string | null
           status: string | null
           updated_at: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           appointment_date: string
@@ -94,7 +94,7 @@ export type Database = {
           service_id?: string | null
           status?: string | null
           updated_at?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           appointment_date?: string
@@ -106,7 +106,7 @@ export type Database = {
           service_id?: string | null
           status?: string | null
           updated_at?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
