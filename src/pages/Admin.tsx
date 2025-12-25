@@ -413,7 +413,9 @@ const Admin = () => {
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-border">
-            <h1 className="text-xl font-bold text-foreground">Control Panel</h1>
+            <h1 className="text-xl font-bold text-foreground">
+              {isSuperAdmin ? "Admin Panel" : isAdmin ? "Control Panel" : "User Panel"}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">Krishna Tech Solutions</p>
           </div>
 
