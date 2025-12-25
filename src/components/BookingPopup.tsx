@@ -221,16 +221,20 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
       noteParts.push(`Guest details: Name=${guestDetails.name}, Email=${guestDetails.email}, Phone=${guestDetails.phone}`);
     }
 
+    const insertData = {
+      user_id: user ? user.id : null,
+      service_id: selectedService,
+      appointment_date: format(selectedDate, "yyyy-MM-dd"),
+      appointment_time: convertTo24Hr(selectedTime),
+      status: "pending",
+      notes: noteParts.length ? noteParts.join(" | ") : null,
+    };
+    
+    console.log("Inserting appointment with data:", insertData, "User:", user);
+
     const { error, data } = await supabase
       .from("appointments")
-      .insert({
-        user_id: user ? user.id : null,
-        service_id: selectedService,
-        appointment_date: format(selectedDate, "yyyy-MM-dd"),
-        appointment_time: convertTo24Hr(selectedTime),
-        status: "pending",
-        notes: noteParts.length ? noteParts.join(" | ") : null,
-      })
+      .insert(insertData)
       .select("id, reference_id")
       .single();
 
