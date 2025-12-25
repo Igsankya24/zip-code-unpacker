@@ -20,11 +20,10 @@ const Auth = () => {
   const navigate = useNavigate();
   const hasRedirected = useRef(false);
 
-  // Redirect logged-in users to control panel
+  // Redirect logged-in users to appropriate panel
   useEffect(() => {
     if (user && !hasRedirected.current) {
       hasRedirected.current = true;
-      // Check roles and redirect
       const checkAndRedirect = async () => {
         const { data: roles } = await supabase
           .from("user_roles")
@@ -34,7 +33,8 @@ const Auth = () => {
         const userRoles = roles?.map(r => r.role) || [];
         const isAdminUser = userRoles.includes("admin") || userRoles.includes("super_admin");
         
-        navigate(isAdminUser ? "/admin" : "/");
+        // Admins go to admin panel, regular users go to user dashboard
+        navigate(isAdminUser ? "/admin" : "/dashboard");
       };
       checkAndRedirect();
     }
@@ -98,8 +98,8 @@ const Auth = () => {
               description: "You have successfully logged in.",
             });
             
-            // Redirect admins to control panel, regular users to home
-            navigate(isAdminUser ? "/admin" : "/");
+            // Redirect admins to admin panel, regular users to user dashboard
+            navigate(isAdminUser ? "/admin" : "/dashboard");
           }
         }
       } else {
