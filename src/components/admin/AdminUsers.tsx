@@ -61,7 +61,10 @@ const AdminUsers = () => {
   const [uploading, setUploading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
-  const [passwordResetUser, setPasswordResetUser] = useState<UserProfile | null>(null);
+  const [passwordChangeUser, setPasswordChangeUser] = useState<UserProfile | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -201,17 +204,45 @@ const AdminUsers = () => {
     setUserToDelete(null);
   };
 
-  const sendPasswordReset = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth`,
-    });
+  const changeUserPassword = async () => {
+    if (!passwordChangeUser) return;
 
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Success", description: "Password reset email sent" });
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
     }
-    setPasswordResetUser(null);
+
+    if (newPassword.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('change-user-password', {
+        body: { 
+          targetUserId: passwordChangeUser.user_id, 
+          newPassword: newPassword 
+        }
+      });
+
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else if (data?.error) {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      } else {
+        toast({ title: "Success", description: "Password changed successfully" });
+        setPasswordChangeUser(null);
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to change password';
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+    }
+
+    setChangingPassword(false);
   };
 
   const handleEditSave = async () => {
@@ -436,8 +467,8 @@ const AdminUsers = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setPasswordResetUser(user)}
-                          title="Send password reset email"
+                          onClick={() => setPasswordChangeUser(user)}
+                          title="Change password"
                         >
                           <Key className="w-4 h-4 text-blue-500" />
                         </Button>
@@ -578,25 +609,69 @@ const AdminUsers = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Password Reset Dialog */}
-      <AlertDialog open={!!passwordResetUser} onOpenChange={() => setPasswordResetUser(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Send Password Reset</AlertDialogTitle>
-            <AlertDialogDescription>
-              Send a password reset email to {passwordResetUser?.email}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => passwordResetUser?.email && sendPasswordReset(passwordResetUser.email)}
-            >
-              Send Reset Email
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Change Password Dialog */}
+      <Dialog open={!!passwordChangeUser} onOpenChange={() => {
+        setPasswordChangeUser(null);
+        setNewPassword("");
+        setConfirmPassword("");
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          {passwordChangeUser && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm font-medium">{passwordChangeUser.full_name || 'User'}</p>
+                <p className="text-xs text-muted-foreground">{passwordChangeUser.email}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New Password</label>
+                <Input
+                  type="password"
+                  placeholder="Enter new password (min 6 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Confirm Password</label>
+                <Input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+
+              {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-sm text-destructive">Passwords do not match</p>
+              )}
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setPasswordChangeUser(null);
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={changeUserPassword}
+                  disabled={changingPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
+                >
+                  {changingPassword ? "Changing..." : "Change Password"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
