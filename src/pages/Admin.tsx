@@ -137,11 +137,27 @@ const Admin = () => {
     navigate("/");
   }, [signOut, navigate]);
 
-  // 15 minute idle timeout for auto-logout (must be before early returns)
+  // Idle timeout for auto-logout (configurable from settings)
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState<number>(15);
+  
+  useEffect(() => {
+    const fetchIdleTimeout = async () => {
+      const { data } = await supabase
+        .from("site_settings")
+        .select("value")
+        .eq("key", "idle_timeout_minutes")
+        .single();
+      if (data?.value) {
+        setIdleTimeoutMinutes(parseInt(data.value) || 15);
+      }
+    };
+    fetchIdleTimeout();
+  }, []);
+
   useIdleTimeout({
-    timeout: 15 * 60 * 1000, // 15 minutes
+    timeout: idleTimeoutMinutes * 60 * 1000,
     onTimeout: handleSignOut,
-    enabled: isAdmin,
+    enabled: !!user,
   });
 
   useEffect(() => {
@@ -171,6 +187,9 @@ const Admin = () => {
 
     console.log("Setting up real-time subscriptions...");
 
+    // Track shown notification IDs to prevent duplicates
+    const shownNotificationIds = new Set<string>();
+
     // Subscribe to notifications
     const notificationsChannel = supabase
       .channel('admin-notifications')
@@ -183,19 +202,34 @@ const Admin = () => {
         },
         (payload) => {
           console.log("New notification:", payload);
-          fetchNotifications();
           const newNotification = payload.new as any;
-          if (newNotification?.title) {
-            toast({
-              title: "🔔 " + newNotification.title,
-              description: newNotification.message,
+          
+          // Only show toast if we haven't shown this notification yet
+          if (newNotification?.id && !shownNotificationIds.has(newNotification.id)) {
+            shownNotificationIds.add(newNotification.id);
+            
+            // Add to state directly instead of refetching to avoid race conditions
+            setNotifications(prev => {
+              // Check if notification already exists in state
+              if (prev.some(n => n.id === newNotification.id)) {
+                return prev;
+              }
+              return [newNotification, ...prev].slice(0, 20);
             });
+            setUnreadCount(prev => prev + 1);
+            
+            if (newNotification?.title) {
+              toast({
+                title: "🔔 " + newNotification.title,
+                description: newNotification.message,
+              });
+            }
           }
         }
       )
       .subscribe();
 
-    // Subscribe to appointments
+    // Subscribe to appointments (don't show toast - notification trigger handles it)
     const appointmentsChannel = supabase
       .channel('admin-appointments')
       .on(
@@ -208,10 +242,7 @@ const Admin = () => {
         (payload) => {
           console.log("New appointment:", payload);
           fetchStats();
-          toast({
-            title: "📅 New Appointment",
-            description: "A new appointment has been booked!",
-          });
+          fetchPendingAppointments();
         }
       )
       .on(
@@ -224,11 +255,12 @@ const Admin = () => {
         (payload) => {
           console.log("Appointment updated:", payload);
           fetchStats();
+          fetchPendingAppointments();
         }
       )
       .subscribe();
 
-    // Subscribe to contact messages
+    // Subscribe to contact messages (don't show toast - use notifications table)
     const messagesChannel = supabase
       .channel('admin-messages')
       .on(
@@ -241,18 +273,12 @@ const Admin = () => {
         (payload) => {
           console.log("New message:", payload);
           fetchStats();
-          const newMessage = payload.new as any;
-          toast({
-            title: "💬 New Message",
-            description: newMessage?.source === "chatbot_booking" 
-              ? "New guest booking request received!" 
-              : "New contact message received!",
-          });
+          fetchRecentMessages();
         }
       )
       .subscribe();
 
-    // Subscribe to profiles (for new user registrations)
+    // Subscribe to profiles (don't show toast - notification trigger handles it)
     const profilesChannel = supabase
       .channel('admin-profiles')
       .on(
@@ -265,10 +291,6 @@ const Admin = () => {
         (payload) => {
           console.log("New user registered:", payload);
           fetchStats();
-          toast({
-            title: "👤 New User",
-            description: "A new user has registered!",
-          });
         }
       )
       .subscribe();
