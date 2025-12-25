@@ -90,6 +90,19 @@ const Admin = () => {
   const { user, isAdmin, isSuperAdmin, isLoading, signOut, permissions } = useAuth();
   const navigate = useNavigate();
 
+  // Define handleSignOut BEFORE any early returns (hooks must be unconditional)
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    navigate("/");
+  }, [signOut, navigate]);
+
+  // 15 minute idle timeout for auto-logout (must be before early returns)
+  useIdleTimeout({
+    timeout: 15 * 60 * 1000, // 15 minutes
+    onTimeout: handleSignOut,
+    enabled: isAdmin,
+  });
+
   useEffect(() => {
     if (!isLoading && !user) {
       navigate("/auth");
@@ -226,17 +239,6 @@ const Admin = () => {
     return null;
   }
 
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-    navigate("/");
-  }, [signOut, navigate]);
-
-  // 15 minute idle timeout for auto-logout
-  useIdleTimeout({
-    timeout: 15 * 60 * 1000, // 15 minutes
-    onTimeout: handleSignOut,
-    enabled: isAdmin,
-  });
 
   // Filter tabs based on permissions
   const allTabs = [
