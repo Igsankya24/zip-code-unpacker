@@ -41,8 +41,6 @@ interface BookingPopupProps {
   preSelectedServiceId?: string | null;
 }
 
-const timeSlots = ["09:00 AM", "12:00 PM", "02:00 PM", "05:00 PM"];
-
 // Convert 12hr format to 24hr for database
 const convertTo24Hr = (time12: string): string => {
   const [time, modifier] = time12.split(" ");
@@ -50,6 +48,38 @@ const convertTo24Hr = (time12: string): string => {
   if (hours === "12") hours = modifier === "AM" ? "00" : "12";
   else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
   return `${hours.padStart(2, "0")}:${minutes}:00`;
+};
+
+// Generate time slots based on settings
+const generateTimeSlots = (startTime: string, endTime: string, durationMinutes: number): string[] => {
+  const slots: string[] = [];
+  const [startHour] = startTime.split(":").map(Number);
+  const [endHour] = endTime.split(":").map(Number);
+  
+  let currentHour = startHour;
+  let currentMinute = 0;
+  
+  while (currentHour < endHour || (currentHour === endHour && currentMinute === 0)) {
+    // Check if slot would end before or at end time
+    const slotEndMinutes = currentHour * 60 + currentMinute + durationMinutes;
+    const endTimeMinutes = endHour * 60;
+    
+    if (slotEndMinutes <= endTimeMinutes) {
+      const hour12 = currentHour % 12 || 12;
+      const ampm = currentHour >= 12 ? "PM" : "AM";
+      const minuteStr = currentMinute.toString().padStart(2, "0");
+      slots.push(`${hour12.toString().padStart(2, "0")}:${minuteStr} ${ampm}`);
+    }
+    
+    // Move to next slot
+    currentMinute += durationMinutes;
+    while (currentMinute >= 60) {
+      currentMinute -= 60;
+      currentHour += 1;
+    }
+  }
+  
+  return slots;
 };
 
 const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedServiceId }: BookingPopupProps) => {
@@ -67,9 +97,17 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
   const [submitting, setSubmitting] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [guestDetails, setGuestDetails] = useState({ name: "", email: "", phone: "" });
+  const [slotSettings, setSlotSettings] = useState({ 
+    startTime: "09:00", 
+    endTime: "18:00", 
+    duration: 60 
+  });
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Generate time slots based on settings
+  const timeSlots = generateTimeSlots(slotSettings.startTime, slotSettings.endTime, slotSettings.duration);
 
   // Handle controlled vs uncontrolled state
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
@@ -101,13 +139,18 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
     const { data } = await supabase
       .from("site_settings")
       .select("key, value")
-      .in("key", ["booking_popup_enabled", "booking_popup_text"]);
+      .in("key", ["booking_popup_enabled", "booking_popup_text", "working_start_time", "working_end_time", "slot_duration"]);
     
     if (data) {
       const settings: Record<string, string> = {};
       data.forEach((s) => { settings[s.key] = s.value; });
       setEnabled(settings.booking_popup_enabled === "true");
       if (settings.booking_popup_text) setButtonText(settings.booking_popup_text);
+      setSlotSettings({
+        startTime: settings.working_start_time || "09:00",
+        endTime: settings.working_end_time || "18:00",
+        duration: parseInt(settings.slot_duration || "60", 10),
+      });
     }
   };
 
@@ -328,7 +371,7 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
                 <p className="text-sm font-medium">{selectedDate ? format(selectedDate, "EEEE, MMMM d, yyyy") : ""}</p>
                 <button onClick={() => setStep("date")} className="text-xs text-primary underline">Change date</button>
               </div>
-              <p className="text-sm text-muted-foreground">Select a time slot (3-hour appointments):</p>
+              <p className="text-sm text-muted-foreground">Select a time slot ({slotSettings.duration >= 60 ? `${slotSettings.duration / 60} hour${slotSettings.duration > 60 ? 's' : ''}` : `${slotSettings.duration} min`} appointments):</p>
               <div className="grid grid-cols-2 gap-2">
                 {timeSlots.map((time) => {
                   const booked = isSlotBooked(time);

@@ -6,6 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Save, ExternalLink } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Settings {
   [key: string]: string;
@@ -65,6 +72,77 @@ const AdminSettings = () => {
   return (
     <div className="space-y-8">
       <h2 className="text-2xl font-bold text-foreground">Settings</h2>
+
+      {/* Appointment Slot Settings */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Appointment Slots</h3>
+        <p className="text-sm text-muted-foreground">Configure time slots for bookings. Only one appointment is allowed per slot.</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Working Start Time</label>
+            <div className="flex gap-2">
+              <Select
+                value={settings.working_start_time || "09:00"}
+                onValueChange={(value) => updateSetting("working_start_time", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Start time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 13 }, (_, i) => i + 6).map((hour) => (
+                    <SelectItem key={hour} value={`${hour.toString().padStart(2, "0")}:00`}>
+                      {hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? "12:00 PM" : `${hour}:00 AM`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Working End Time</label>
+            <div className="flex gap-2">
+              <Select
+                value={settings.working_end_time || "18:00"}
+                onValueChange={(value) => updateSetting("working_end_time", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="End time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 13 }, (_, i) => i + 12).map((hour) => (
+                    <SelectItem key={hour} value={`${hour.toString().padStart(2, "0")}:00`}>
+                      {hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? "12:00 PM" : `${hour}:00 AM`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Slot Duration</label>
+            <div className="flex gap-2">
+              <Select
+                value={settings.slot_duration || "60"}
+                onValueChange={(value) => updateSetting("slot_duration", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="90">1.5 hours</SelectItem>
+                  <SelectItem value="120">2 hours</SelectItem>
+                  <SelectItem value="180">3 hours</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Maintenance Mode */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">

@@ -43,14 +43,6 @@ interface BotSettings {
 
 type BookingStep = "chat" | "date" | "time" | "details" | "confirm" | "tracking" | "tracking_input";
 
-// 3-hour appointment slots from 9 AM to 8 PM (last slot at 5 PM ends at 8 PM)
-const timeSlots = [
-  "09:00 AM",
-  "12:00 PM",
-  "02:00 PM",
-  "05:00 PM"
-];
-
 // Convert 12hr format to 24hr for database
 const convertTo24Hr = (time12: string): string => {
   const [time, modifier] = time12.split(" ");
@@ -58,6 +50,36 @@ const convertTo24Hr = (time12: string): string => {
   if (hours === "12") hours = modifier === "AM" ? "00" : "12";
   else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
   return `${hours.padStart(2, "0")}:${minutes}:00`;
+};
+
+// Generate time slots based on settings
+const generateTimeSlots = (startTime: string, endTime: string, durationMinutes: number): string[] => {
+  const slots: string[] = [];
+  const [startHour] = startTime.split(":").map(Number);
+  const [endHour] = endTime.split(":").map(Number);
+  
+  let currentHour = startHour;
+  let currentMinute = 0;
+  
+  while (currentHour < endHour || (currentHour === endHour && currentMinute === 0)) {
+    const slotEndMinutes = currentHour * 60 + currentMinute + durationMinutes;
+    const endTimeMinutes = endHour * 60;
+    
+    if (slotEndMinutes <= endTimeMinutes) {
+      const hour12 = currentHour % 12 || 12;
+      const ampm = currentHour >= 12 ? "PM" : "AM";
+      const minuteStr = currentMinute.toString().padStart(2, "0");
+      slots.push(`${hour12.toString().padStart(2, "0")}:${minuteStr} ${ampm}`);
+    }
+    
+    currentMinute += durationMinutes;
+    while (currentMinute >= 60) {
+      currentMinute -= 60;
+      currentHour += 1;
+    }
+  }
+  
+  return slots;
 };
 
 const Chatbot = () => {
@@ -81,7 +103,16 @@ const Chatbot = () => {
     showServicesFallback: true,
     whatsappFallbackEnabled: true,
   });
+  const [slotSettings, setSlotSettings] = useState({ 
+    startTime: "09:00", 
+    endTime: "18:00", 
+    duration: 60 
+  });
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const { toast } = useToast();
+
+  // Generate time slots based on settings
+  const timeSlots = generateTimeSlots(slotSettings.startTime, slotSettings.endTime, slotSettings.duration);
 
   const quickOptions = ["View Services", "Book Appointment", "Track Appointment", "Contact Us"];
 
@@ -97,7 +128,7 @@ const Chatbot = () => {
       setMessages((prev) => [
         ...prev,
         { type: "user", text: `Book ${serviceName}` },
-        { type: "bot", text: `Great choice! Let's book "${serviceName}" for you. 📅 Each appointment is 3 hours long. Please select a date:` },
+        { type: "bot", text: `Great choice! Let's book "${serviceName}" for you. 📅 Please select a date:` },
       ]);
       setStep("date");
     };
@@ -132,10 +163,15 @@ const Chatbot = () => {
         "contact_phone",
         "contact_email",
         "contact_address",
+        "working_start_time",
+        "working_end_time",
+        "slot_duration",
       ]);
     
     if (data) {
+      const settings: Record<string, string> = {};
       data.forEach((setting) => {
+        settings[setting.key] = setting.value;
         if (setting.key === "chatbot_welcome" && setting.value) {
           setWelcomeMessage(setting.value);
         }
@@ -161,6 +197,34 @@ const Chatbot = () => {
           setContactInfo((prev) => ({ ...prev, address: setting.value }));
         }
       });
+      setSlotSettings({
+        startTime: settings.working_start_time || "09:00",
+        endTime: settings.working_end_time || "18:00",
+        duration: parseInt(settings.slot_duration || "60", 10),
+      });
+    }
+  };
+
+  const fetchBookedSlots = async (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const { data } = await supabase
+      .from("appointments")
+      .select("appointment_time")
+      .eq("appointment_date", dateStr)
+      .in("status", ["pending", "confirmed"]);
+
+    if (data) {
+      const booked = data.map(apt => {
+        const time24 = apt.appointment_time;
+        const [hours, minutes] = time24.split(":");
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? "PM" : "AM";
+        const hour12 = hour % 12 || 12;
+        return `${hour12.toString().padStart(2, "0")}:${minutes} ${ampm}`;
+      });
+      setBookedSlots(booked);
+    } else {
+      setBookedSlots([]);
     }
   };
 
@@ -411,9 +475,10 @@ const Chatbot = () => {
 
     setTimeout(() => {
       if (option === "Book Appointment") {
+        const durationText = slotSettings.duration >= 60 ? `${slotSettings.duration / 60} hour${slotSettings.duration > 60 ? 's' : ''}` : `${slotSettings.duration} min`;
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: "Let me help you book an appointment! Each appointment is 3 hours long (9 AM - 8 PM). Please select a date:" },
+          { type: "bot", text: `Let me help you book an appointment! Each appointment is ${durationText}. Please select a date:` },
         ]);
         setStep("date");
       } else if (option === "View Services") {
@@ -437,13 +502,15 @@ const Chatbot = () => {
     }, 800);
   };
 
-  const handleDateSelect = (date: Date | undefined) => {
+  const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;
     setSelectedDate(date);
+    await fetchBookedSlots(date);
+    const durationText = slotSettings.duration >= 60 ? `${slotSettings.duration / 60} hour${slotSettings.duration > 60 ? 's' : ''}` : `${slotSettings.duration} min`;
     setMessages((prev) => [
       ...prev,
       { type: "user", text: format(date, "PPP") },
-      { type: "bot", text: "Please select a time slot (each appointment is 3 hours):" },
+      { type: "bot", text: `Please select an available time slot (${durationText} each):` },
     ]);
     setStep("time");
   };
@@ -677,19 +744,37 @@ const Chatbot = () => {
             {/* Time Selection - Step 2 */}
             {step === "time" && (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground text-center">Working hours: 9 AM - 8 PM (3hr slots)</p>
+                <p className="text-xs text-muted-foreground text-center">
+                  {slotSettings.duration >= 60 ? `${slotSettings.duration / 60}hr` : `${slotSettings.duration}min`} slots
+                </p>
                 <div className="grid grid-cols-2 gap-2">
-                  {timeSlots.map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => handleTimeSelect(time)}
-                      className="p-3 bg-card border border-border rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm font-medium">{time}</span>
-                    </button>
-                  ))}
+                  {timeSlots.map((time) => {
+                    const isBooked = bookedSlots.some(booked => {
+                      const normalizedBooked = booked.replace(/^0/, "");
+                      const normalizedTime = time.replace(/^0/, "");
+                      return normalizedBooked === normalizedTime || booked === time;
+                    });
+                    return (
+                      <button
+                        key={time}
+                        onClick={() => !isBooked && handleTimeSelect(time)}
+                        disabled={isBooked}
+                        className={`p-3 border rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                          isBooked
+                            ? "bg-muted text-muted-foreground border-border cursor-not-allowed opacity-50"
+                            : "bg-card border-border hover:bg-primary hover:text-primary-foreground"
+                        }`}
+                      >
+                        <Clock className="w-4 h-4" />
+                        <span className="text-sm font-medium">{time}</span>
+                        {isBooked && <span className="text-xs">(Booked)</span>}
+                      </button>
+                    );
+                  })}
                 </div>
+                {timeSlots.length > 0 && bookedSlots.length === timeSlots.length && (
+                  <p className="text-xs text-destructive text-center">All slots booked. Please select another date.</p>
+                )}
               </div>
             )}
 
