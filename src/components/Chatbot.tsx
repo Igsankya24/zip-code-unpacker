@@ -257,7 +257,7 @@ const Chatbot = () => {
         ...prev,
         {
           type: "bot",
-          text: `❌ No appointment found with reference ID: ${formattedRefId}\n\nPlease check the ID and try again.\n\n📌 **Valid formats:**\n• Confirmed appointments: KTS-1001\n• Guest requests: REQ-XXXXXX\n\nNeed help? Contact us at ${contactInfo.phone}`,
+          text: `❌ No appointment found with reference ID: ${formattedRefId}\n\nPlease check the ID and try again.\n\n📌 **Valid format:**\n• KTS-1001\n\nNeed help? Contact us at ${contactInfo.phone}`,
           showFallback: true,
         },
       ]);
