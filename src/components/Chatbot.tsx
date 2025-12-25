@@ -224,19 +224,6 @@ const Chatbot = () => {
     const formattedRefId = refId.trim().toUpperCase();
     setTrackingId(formattedRefId);
     
-    // Check if this is a guest request ID (REQ-XXXXXX format)
-    if (formattedRefId.startsWith("REQ-")) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "bot",
-          text: `📋 **Guest Booking Request Found**\n\n🆔 Request ID: ${formattedRefId}\n\n⏳ **Status: AWAITING PROCESSING**\n\nGuest bookings are processed manually by our team. Once confirmed, you'll receive a permanent reference ID (like KTS-1001) via email/phone.\n\n📞 For faster service, please login to book appointments directly, or contact us at ${contactInfo.phone}`,
-        },
-      ]);
-      setStep("chat");
-      return;
-    }
-    
     // Try exact match first for KTS-XXXX format
     let { data: appointment, error } = await supabase
       .from("appointments")
@@ -505,7 +492,7 @@ const Chatbot = () => {
         return;
       }
 
-      const tempRef = `REQ-${format(new Date(), "yyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const tempRef = `KTS-${format(new Date(), "yyMMdd")}-${format(new Date(), "HHmm")}`;
       
       setMessages((prev) => [
         ...prev,
