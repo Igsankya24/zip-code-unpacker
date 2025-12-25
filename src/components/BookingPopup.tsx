@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, User, Mail, Phone, Tag, Briefcase, LogIn } from "lucide-react";
+import { Calendar, Clock, User, Mail, Phone, Tag, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -66,6 +66,7 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [guestDetails, setGuestDetails] = useState({ name: "", email: "", phone: "" });
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -196,35 +197,42 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      toast({ title: "Login Required", description: "Please login to book an appointment", variant: "destructive" });
-      setIsOpen(false);
-      navigate("/auth");
-      return;
-    }
-
     if (!selectedService || !selectedDate || !selectedTime) {
       toast({ title: "Error", description: "Please complete all steps", variant: "destructive" });
       return;
     }
 
-    setSubmitting(true);
-    const service = getSelectedServiceData();
-    
-    // Build notes with coupon info if applied
-    let notes = "";
-    if (appliedCoupon) {
-      notes = `Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)`;
+    // If not logged in, allow a guest booking (old flow) but store it as an appointment
+    if (!user) {
+      if (!guestDetails.name || !guestDetails.email || !guestDetails.phone) {
+        toast({ title: "Missing details", description: "Please enter your name, email and phone", variant: "destructive" });
+        return;
+      }
     }
 
-    const { error } = await supabase.from("appointments").insert({
-      user_id: user.id,
-      service_id: selectedService,
-      appointment_date: format(selectedDate, "yyyy-MM-dd"),
-      appointment_time: convertTo24Hr(selectedTime),
-      status: "pending",
-      notes: notes || null,
-    });
+    setSubmitting(true);
+
+    // Build notes with coupon + guest info if needed
+    const noteParts: string[] = [];
+    if (appliedCoupon) {
+      noteParts.push(`Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)`);
+    }
+    if (!user) {
+      noteParts.push(`Guest details: Name=${guestDetails.name}, Email=${guestDetails.email}, Phone=${guestDetails.phone}`);
+    }
+
+    const { error, data } = await supabase
+      .from("appointments")
+      .insert({
+        user_id: user ? user.id : null,
+        service_id: selectedService,
+        appointment_date: format(selectedDate, "yyyy-MM-dd"),
+        appointment_time: convertTo24Hr(selectedTime),
+        status: "pending",
+        notes: noteParts.length ? noteParts.join(" | ") : null,
+      })
+      .select("id, reference_id")
+      .single();
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -239,7 +247,13 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
         .eq("id", appliedCoupon.id);
     }
 
-    toast({ title: "Booking Submitted!", description: "Your appointment request has been received. We'll confirm it shortly." });
+    toast({
+      title: "Booking Submitted!",
+      description: data?.reference_id
+        ? `Your request was received. Reference: ${data.reference_id}`
+        : "Your appointment request has been received. We'll confirm it shortly.",
+    });
+
     setSubmitting(false);
     resetForm();
     setIsOpen(false);
@@ -253,6 +267,7 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
     setCouponCode("");
     setAppliedCoupon(null);
     setBookedSlots([]);
+    setGuestDetails({ name: "", email: "", phone: "" });
   };
 
   // Only show floating button if enabled and not externally controlled
@@ -344,12 +359,70 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
               </div>
 
               {!user && (
-                <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg text-center">
-                  <LogIn className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-yellow-700">Login Required</p>
-                  <p className="text-xs text-muted-foreground mb-3">Please login to complete your booking</p>
-                  <Button onClick={() => { setIsOpen(false); navigate("/auth"); }} size="sm">
-                    Login / Sign Up
+                <div className="space-y-4">
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <p className="text-sm font-medium text-foreground">Booking as Guest</p>
+                    <p className="text-xs text-muted-foreground">
+                      Enter your details so we can confirm your appointment.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Name *</label>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Your full name"
+                        value={guestDetails.name}
+                        onChange={(e) => setGuestDetails((p) => ({ ...p, name: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Email *</label>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={guestDetails.email}
+                        onChange={(e) => setGuestDetails((p) => ({ ...p, email: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Phone *</label>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="+91 7026292525"
+                        value={guestDetails.phone}
+                        onChange={(e) => setGuestDetails((p) => ({ ...p, phone: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-primary/5 border border-primary/20 p-3 rounded-lg">
+                    <p className="text-xs text-muted-foreground">
+                      Tip: Login gives you access to your full booking history.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={() => {
+                        setIsOpen(false);
+                        navigate("/auth");
+                      }}
+                    >
+                      Login / Sign Up
+                    </Button>
+                  </div>
+
+                  <Button onClick={handleSubmit} disabled={submitting} className="w-full">
+                    {submitting ? "Submitting..." : "Confirm Booking"}
                   </Button>
                 </div>
               )}
