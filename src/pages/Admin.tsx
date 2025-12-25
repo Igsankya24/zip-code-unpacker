@@ -87,6 +87,26 @@ interface Notification {
   created_at: string;
 }
 
+interface PendingAppointment {
+  id: string;
+  reference_id: string;
+  appointment_date: string;
+  appointment_time: string;
+  status: string;
+  service_name: string | null;
+  user_name: string | null;
+}
+
+interface RecentMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  source: string | null;
+}
+
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -103,6 +123,8 @@ const Admin = () => {
     pendingDeletionRequests: 0,
   });
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [pendingAppointmentsList, setPendingAppointmentsList] = useState<PendingAppointment[]>([]);
+  const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [accessDeniedOpen, setAccessDeniedOpen] = useState(false);
   const { user, isAdmin, isSuperAdmin, isLoading, signOut, permissions } = useAuth();
@@ -138,6 +160,8 @@ const Admin = () => {
     if (isAdmin) {
       fetchStats();
       fetchNotifications();
+      fetchPendingAppointments();
+      fetchRecentMessages();
     }
   }, [isAdmin, isSuperAdmin, user?.id]);
 
@@ -315,6 +339,49 @@ const Admin = () => {
     });
   };
 
+  const fetchPendingAppointments = async () => {
+    const { data } = await supabase
+      .from("appointments")
+      .select(`
+        id,
+        reference_id,
+        appointment_date,
+        appointment_time,
+        status,
+        services(name),
+        profiles!appointments_user_id_fkey(full_name)
+      `)
+      .eq("status", "pending")
+      .order("appointment_date", { ascending: true })
+      .limit(5);
+
+    if (data) {
+      const formatted = data.map((apt: any) => ({
+        id: apt.id,
+        reference_id: apt.reference_id,
+        appointment_date: apt.appointment_date,
+        appointment_time: apt.appointment_time,
+        status: apt.status,
+        service_name: apt.services?.name || null,
+        user_name: apt.profiles?.full_name || null,
+      }));
+      setPendingAppointmentsList(formatted);
+    }
+  };
+
+  const fetchRecentMessages = async () => {
+    const { data } = await supabase
+      .from("contact_messages")
+      .select("id, name, email, message, is_read, created_at, source")
+      .neq("source", "chatbot_booking")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (data) {
+      setRecentMessages(data);
+    }
+  };
+
   const fetchNotifications = async () => {
     // For admins, fetch notifications where user_id is null (admin notifications) or matches current user
     // For super admins, also include all admin-targeted notifications
@@ -456,7 +523,7 @@ const Admin = () => {
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket, visible: permissions.can_view_coupons },
     { id: "user-access" as AdminTab, label: "User Access", icon: Lock, visible: permissions.can_manage_users },
     { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot, visible: permissions.can_view_settings },
-    { id: "customization" as AdminTab, label: "Customization", icon: Paintbrush, visible: isSuperAdmin },
+    { id: "customization" as AdminTab, label: "Website Customization", icon: Paintbrush, visible: isSuperAdmin },
     { id: "user-permissions" as AdminTab, label: "User Roles", icon: UserCog, visible: isSuperAdmin },
     { id: "permissions" as AdminTab, label: "Admin Permissions", icon: Shield, visible: isSuperAdmin },
     { id: "api-keys" as AdminTab, label: "API Keys", icon: Key, visible: isSuperAdmin },
@@ -567,6 +634,85 @@ const Admin = () => {
                 </div>
               )}
             </div>
+
+            {/* Pending Appointments Preview */}
+            {permissions.can_view_appointments && pendingAppointmentsList.length > 0 && (
+              <div className="bg-card rounded-xl border border-border">
+                <div className="p-4 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-yellow-500" />
+                    <h3 className="font-semibold text-foreground">Pending Appointments</h3>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setActiveTab("appointments")}>
+                    View All
+                  </Button>
+                </div>
+                <div className="divide-y divide-border">
+                  {pendingAppointmentsList.map((apt) => (
+                    <div 
+                      key={apt.id} 
+                      className="p-4 hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => setActiveTab("appointments")}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">{apt.reference_id}</span>
+                            <span className="text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded-full">Pending</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {apt.user_name || "Guest"} - {apt.service_name || "Service"}
+                          </p>
+                        </div>
+                        <div className="text-right text-sm">
+                          <p className="text-foreground">{new Date(apt.appointment_date).toLocaleDateString()}</p>
+                          <p className="text-muted-foreground">{apt.appointment_time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Messages Preview */}
+            {permissions.can_view_messages && recentMessages.length > 0 && (
+              <div className="bg-card rounded-xl border border-border">
+                <div className="p-4 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-foreground">Recent Messages</h3>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setActiveTab("messages")}>
+                    View All
+                  </Button>
+                </div>
+                <div className="divide-y divide-border">
+                  {recentMessages.map((msg) => (
+                    <div 
+                      key={msg.id} 
+                      className="p-4 hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => setActiveTab("messages")}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">{msg.name}</span>
+                            {!msg.is_read && (
+                              <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">New</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{msg.message}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(msg.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
       case "analytics":
