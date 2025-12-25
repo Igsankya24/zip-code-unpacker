@@ -41,6 +41,7 @@ const AdminMessages = () => {
     const { data, error } = await supabase
       .from("contact_messages")
       .select("*")
+      .neq("source", "chatbot_booking")
       .order("created_at", { ascending: false });
 
     if (error) {
