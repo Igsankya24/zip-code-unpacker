@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   LineChart,
   Line,
@@ -19,8 +26,10 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { Calendar, Users, TrendingUp, DollarSign, Clock, CheckCircle } from "lucide-react";
+import { Calendar, Users, TrendingUp, DollarSign, Clock, CheckCircle, Download, FileSpreadsheet, FileText, File } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from "date-fns";
+import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface AppointmentData {
   date: string;
@@ -59,6 +68,7 @@ const AdminAnalytics = () => {
     totalRevenue: 0,
     completionRate: 0,
   });
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchAnalytics();
@@ -266,6 +276,74 @@ const AdminAnalytics = () => {
     });
   };
 
+  const handleExport = (type: 'excel' | 'pdf' | 'word', dataType: string) => {
+    let exportData: any[] = [];
+    let title = '';
+    const filename = `analytics_${dataType}_${format(new Date(), 'yyyy-MM-dd')}`;
+
+    switch (dataType) {
+      case 'appointments':
+        exportData = appointmentData.map(d => ({
+          Date: d.date,
+          'Appointments': d.count,
+        }));
+        title = 'Appointment Trends Report';
+        break;
+      case 'users':
+        exportData = userGrowthData.map(d => ({
+          Date: d.date,
+          'New Users': d.users,
+          'Total Users': d.cumulative,
+        }));
+        title = 'User Growth Report';
+        break;
+      case 'revenue':
+        exportData = revenueData.map(d => ({
+          Date: d.date,
+          'Revenue (₹)': d.revenue,
+        }));
+        title = 'Revenue Trends Report';
+        break;
+      case 'services':
+        exportData = serviceData.map(d => ({
+          'Service Name': d.name,
+          'Bookings': d.bookings,
+        }));
+        title = 'Service Popularity Report';
+        break;
+      case 'status':
+        exportData = statusData.map(d => ({
+          Status: d.name,
+          Count: d.value,
+        }));
+        title = 'Status Distribution Report';
+        break;
+      case 'summary':
+        exportData = [
+          { Metric: 'Total Appointments', Value: stats.totalAppointments },
+          { Metric: 'Total Users', Value: stats.totalUsers },
+          { Metric: 'Total Revenue', Value: `₹${stats.totalRevenue.toLocaleString()}` },
+          { Metric: 'Completion Rate', Value: `${stats.completionRate}%` },
+        ];
+        title = 'Analytics Summary Report';
+        break;
+    }
+
+    switch (type) {
+      case 'excel':
+        exportToExcel(exportData, filename);
+        break;
+      case 'pdf':
+        exportToPDF(exportData, filename, title);
+        break;
+      case 'word':
+        exportToWord(exportData, filename, title);
+        break;
+    }
+
+    toast({ title: "Success", description: `Exported ${title} to ${type.toUpperCase()}` });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -276,9 +354,49 @@ const AdminAnalytics = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">Analytics Dashboard</h2>
-        <p className="text-muted-foreground">Track your business performance</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Analytics Dashboard</h2>
+          <p className="text-muted-foreground">Track your business performance</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => handleExport('excel', 'summary')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Summary (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('pdf', 'summary')}>
+              <FileText className="w-4 h-4 mr-2" />
+              Summary (PDF)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('word', 'summary')}>
+              <File className="w-4 h-4 mr-2" />
+              Summary (Word)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('excel', 'appointments')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Appointments (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('excel', 'users')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              User Growth (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('excel', 'revenue')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Revenue (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('excel', 'services')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Services (Excel)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Summary Cards */}
