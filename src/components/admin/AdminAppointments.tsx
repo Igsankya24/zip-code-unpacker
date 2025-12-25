@@ -38,6 +38,7 @@ interface Appointment {
   reference_id: string | null;
   user_id: string | null;
   service_id: string | null;
+  technician_id: string | null;
   appointment_date: string;
   appointment_time: string;
   status: string;
@@ -46,10 +47,17 @@ interface Appointment {
   user_email?: string;
   user_name?: string;
   service_name?: string;
+  technician_name?: string;
+}
+
+interface Technician {
+  id: string;
+  name: string;
 }
 
 const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,6 +69,7 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
 
   useEffect(() => {
     fetchAppointments();
+    fetchTechnicians();
 
     const channel = supabase
       .channel("admin-appointments-realtime")
@@ -75,6 +84,15 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const fetchTechnicians = async () => {
+    const { data } = await supabase
+      .from("technicians")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name");
+    setTechnicians(data || []);
+  };
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -92,12 +110,14 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
 
     const userIds = [...new Set((appointmentsData?.map(a => a.user_id).filter(Boolean) as string[]) || [])];
     const serviceIds = [...new Set(appointmentsData?.filter(a => a.service_id).map(a => a.service_id) || [])];
+    const technicianIds = [...new Set(appointmentsData?.filter(a => a.technician_id).map(a => a.technician_id) || [])];
 
-    const [profilesRes, servicesRes] = await Promise.all([
+    const [profilesRes, servicesRes, techniciansRes] = await Promise.all([
       userIds.length > 0
         ? supabase.from("profiles").select("user_id, email, full_name").in("user_id", userIds)
         : { data: [] as any[] },
       serviceIds.length > 0 ? supabase.from("services").select("id, name").in("id", serviceIds) : { data: [] },
+      technicianIds.length > 0 ? supabase.from("technicians").select("id, name").in("id", technicianIds) : { data: [] },
     ]);
 
     const profilesMap: Record<string, { email: string; name: string }> = {};
@@ -110,15 +130,35 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       servicesMap[s.id] = s.name;
     });
 
+    const techniciansMap: Record<string, string> = {};
+    techniciansRes.data?.forEach(t => {
+      techniciansMap[t.id] = t.name;
+    });
+
     const enrichedAppointments = appointmentsData?.map(a => ({
       ...a,
       user_email: a.user_id ? profilesMap[a.user_id]?.email : undefined,
       user_name: a.user_id ? profilesMap[a.user_id]?.name : "Guest",
       service_name: a.service_id ? servicesMap[a.service_id] : undefined,
+      technician_name: a.technician_id ? techniciansMap[a.technician_id] : undefined,
     })) || [];
 
     setAppointments(enrichedAppointments);
     setLoading(false);
+  };
+
+  const assignTechnician = async (appointmentId: string, technicianId: string | null) => {
+    const { error } = await supabase
+      .from("appointments")
+      .update({ technician_id: technicianId })
+      .eq("id", appointmentId);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: technicianId ? "Technician assigned" : "Technician unassigned" });
+      fetchAppointments();
+    }
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -216,6 +256,7 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       Service: a.service_name || '-',
       Date: format(new Date(a.appointment_date), "MMM d, yyyy"),
       Time: a.appointment_time,
+      Technician: a.technician_name || 'Unassigned',
       Status: a.status,
       Notes: a.notes || '-',
       Created: format(new Date(a.created_at), "MMM d, yyyy")
@@ -302,6 +343,7 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
                 <th className="p-4 text-left text-sm font-medium">Customer</th>
                 <th className="p-4 text-left text-sm font-medium hidden md:table-cell">Service</th>
                 <th className="p-4 text-left text-sm font-medium">Date & Time</th>
+                <th className="p-4 text-left text-sm font-medium hidden lg:table-cell">Technician</th>
                 <th className="p-4 text-left text-sm font-medium">Status</th>
                 <th className="p-4 text-left text-sm font-medium">Actions</th>
               </tr>
@@ -331,6 +373,24 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
                         <p className="text-xs text-muted-foreground">{appointment.appointment_time}</p>
                       </div>
                     </div>
+                  </td>
+                  <td className="p-4 hidden lg:table-cell">
+                    <Select
+                      value={appointment.technician_id || "unassigned"}
+                      onValueChange={(value) => assignTechnician(appointment.id, value === "unassigned" ? null : value)}
+                    >
+                      <SelectTrigger className="w-36 h-8 text-xs">
+                        <SelectValue placeholder="Assign..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {technicians.map((tech) => (
+                          <SelectItem key={tech.id} value={tech.id}>
+                            {tech.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(appointment.status)}`}>
@@ -418,7 +478,7 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
               ))}
               {filteredAppointments.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
                     No appointments found.
                   </td>
                 </tr>
