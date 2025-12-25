@@ -51,6 +51,15 @@ const timeSlots = [
   "05:00 PM"
 ];
 
+// Convert 12hr format to 24hr for database
+const convertTo24Hr = (time12: string): string => {
+  const [time, modifier] = time12.split(" ");
+  let [hours, minutes] = time.split(":");
+  if (hours === "12") hours = modifier === "AM" ? "00" : "12";
+  else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+  return `${hours.padStart(2, "0")}:${minutes}:00`;
+};
+
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState("Hello! 👋 Welcome to Krishna Tech Solutions. How can I help you today?");
@@ -534,7 +543,7 @@ const Chatbot = () => {
         user_id: userId,
         service_id: selectedService,
         appointment_date: appointmentDate,
-        appointment_time: selectedTime,
+        appointment_time: convertTo24Hr(selectedTime),
         notes: notes,
         status: "pending",
       })
