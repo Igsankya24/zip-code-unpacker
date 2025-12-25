@@ -18,6 +18,22 @@ export interface AdminPermissions {
   can_manage_settings: boolean;
 }
 
+export interface UserAccess {
+  can_view_services: boolean;
+  can_book_appointments: boolean;
+  can_apply_coupons: boolean;
+  can_use_chatbot: boolean;
+  can_contact_support: boolean;
+}
+
+const defaultUserAccess: UserAccess = {
+  can_view_services: false,
+  can_book_appointments: false,
+  can_apply_coupons: false,
+  can_use_chatbot: false,
+  can_contact_support: false,
+};
+
 const defaultPermissions: AdminPermissions = {
   can_view_messages: true,
   can_view_appointments: true,
@@ -56,6 +72,7 @@ interface AuthContextType {
   isApproved: boolean;
   isLoading: boolean;
   permissions: AdminPermissions;
+  userAccess: UserAccess;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -73,6 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isApproved, setIsApproved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [permissions, setPermissions] = useState<AdminPermissions>(defaultPermissions);
+  const [userAccess, setUserAccess] = useState<UserAccess>(defaultUserAccess);
 
   const checkAdminRole = async (userId: string) => {
     try {
@@ -159,9 +177,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const fetchUserAccess = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_access")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching user access:", error);
+        setUserAccess(defaultUserAccess);
+        return;
+      }
+
+      if (data) {
+        setUserAccess({
+          can_view_services: data.can_view_services ?? false,
+          can_book_appointments: data.can_book_appointments ?? false,
+          can_apply_coupons: data.can_apply_coupons ?? false,
+          can_use_chatbot: data.can_use_chatbot ?? false,
+          can_contact_support: data.can_contact_support ?? false,
+        });
+      } else {
+        setUserAccess(defaultUserAccess);
+      }
+    } catch (err) {
+      console.error("Error in fetchUserAccess:", err);
+      setUserAccess(defaultUserAccess);
+    }
+  };
+
   const refreshPermissions = async () => {
     if (user) {
       await fetchPermissions(user.id, isSuperAdmin);
+      if (!isAdmin) {
+        await fetchUserAccess(user.id);
+      }
     }
   };
 
@@ -180,6 +232,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setIsApproved(approved);
             if (isAdmin) {
               await fetchPermissions(session.user.id, isSuperAdmin);
+            } else {
+              await fetchUserAccess(session.user.id);
             }
             setIsLoading(false);
           }, 0);
@@ -188,6 +242,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsSuperAdmin(false);
           setIsApproved(false);
           setPermissions(defaultPermissions);
+          setUserAccess(defaultUserAccess);
           setIsLoading(false);
         }
       }
@@ -205,6 +260,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsApproved(approved);
         if (isAdmin) {
           await fetchPermissions(session.user.id, isSuperAdmin);
+        } else {
+          await fetchUserAccess(session.user.id);
         }
       }
       setIsLoading(false);
@@ -267,12 +324,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsSuperAdmin(false);
     setIsApproved(false);
     setPermissions(defaultPermissions);
+    setUserAccess(defaultUserAccess);
     navigate("/auth");
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, session, isAdmin, isSuperAdmin, isApproved, isLoading, permissions, signUp, signIn, signOut, refreshPermissions }}
+      value={{ user, session, isAdmin, isSuperAdmin, isApproved, isLoading, permissions, userAccess, signUp, signIn, signOut, refreshPermissions }}
     >
       {children}
     </AuthContext.Provider>
