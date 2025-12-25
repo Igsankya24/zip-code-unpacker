@@ -249,7 +249,8 @@ const Admin = () => {
       supabase.from("services").select("id, is_visible"),
       supabase.from("appointments").select("id, status"),
       supabase.from("coupons").select("id", { count: "exact", head: true }),
-      supabase.from("contact_messages").select("id, is_read"),
+      // Exclude chatbot booking requests (those should be appointments, not messages)
+      supabase.from("contact_messages").select("id, is_read").neq("source", "chatbot_booking"),
       isSuperAdmin ? supabase.from("deletion_requests").select("id, status").eq("status", "pending") : { data: [] },
     ]);
 
