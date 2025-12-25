@@ -518,7 +518,7 @@ const Admin = () => {
     { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar, visible: permissions.can_view_appointments },
     { id: "invoices" as AdminTab, label: "Invoices", icon: FileText, visible: permissions.can_view_appointments },
     { id: "technicians" as AdminTab, label: "Technicians", icon: Wrench, visible: permissions.can_view_appointments },
-    { id: "messages" as AdminTab, label: "Messages", icon: MessageSquare, badge: stats.unreadMessages, visible: permissions.can_view_messages },
+    { id: "messages" as AdminTab, label: "Messages", icon: MessageSquare, badge: stats.unreadMessages > 0 ? stats.unreadMessages : undefined, visible: permissions.can_view_messages },
     { id: "users" as AdminTab, label: "Users", icon: Users, visible: permissions.can_view_users },
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket, visible: permissions.can_view_coupons },
     { id: "user-access" as AdminTab, label: "User Access", icon: Lock, visible: permissions.can_manage_users },
@@ -527,7 +527,7 @@ const Admin = () => {
     { id: "user-permissions" as AdminTab, label: "User Roles", icon: UserCog, visible: isSuperAdmin },
     { id: "permissions" as AdminTab, label: "Admin Permissions", icon: Shield, visible: isSuperAdmin },
     { id: "api-keys" as AdminTab, label: "API Keys", icon: Key, visible: isSuperAdmin },
-    { id: "deletion-requests" as AdminTab, label: "Deletion Requests", icon: Trash2, badge: stats.pendingDeletionRequests, visible: isSuperAdmin },
+    { id: "deletion-requests" as AdminTab, label: "Deletion Requests", icon: Trash2, badge: stats.pendingDeletionRequests > 0 ? stats.pendingDeletionRequests : undefined, visible: isSuperAdmin },
     { id: "profile" as AdminTab, label: "My Profile", icon: UserCircle, visible: true },
     { id: "settings" as AdminTab, label: "Settings", icon: Settings, visible: permissions.can_view_settings },
   ];

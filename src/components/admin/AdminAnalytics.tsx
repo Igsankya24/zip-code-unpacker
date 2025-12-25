@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,10 +26,11 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { Calendar, Users, TrendingUp, DollarSign, Clock, CheckCircle, Download, FileSpreadsheet, FileText, File } from "lucide-react";
+import { Calendar, Users, TrendingUp, DollarSign, Clock, CheckCircle, Download, FileSpreadsheet, FileText, File, Image } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from "date-fns";
 import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
+import html2canvas from "html2canvas";
 
 interface AppointmentData {
   date: string;
@@ -69,6 +70,30 @@ const AdminAnalytics = () => {
     completionRate: 0,
   });
   const { toast } = useToast();
+  
+  // Chart refs for export
+  const appointmentChartRef = useRef<HTMLDivElement>(null);
+  const statusChartRef = useRef<HTMLDivElement>(null);
+  const userChartRef = useRef<HTMLDivElement>(null);
+  const revenueChartRef = useRef<HTMLDivElement>(null);
+  const serviceChartRef = useRef<HTMLDivElement>(null);
+
+  const exportChartAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!ref.current) return;
+    try {
+      const canvas = await html2canvas(ref.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+      const link = document.createElement('a');
+      link.download = `${filename}_${format(new Date(), 'yyyy-MM-dd')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast({ title: "Success", description: `Chart exported as ${filename}.png` });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to export chart", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     fetchAnalytics();
@@ -454,32 +479,39 @@ const AdminAnalytics = () => {
         <TabsContent value="appointments" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Appointment Trends (Last 30 Days)</CardTitle>
-                <CardDescription>Number of appointments booked per day</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Appointment Trends (Last 30 Days)</CardTitle>
+                  <CardDescription>Number of appointments booked per day</CardDescription>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => exportChartAsImage(appointmentChartRef, 'appointment_trends')}>
+                  <Image className="w-4 h-4" />
+                </Button>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={appointmentData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="count"
-                      stroke="hsl(var(--primary))"
-                      fill="hsl(var(--primary) / 0.2)"
-                      name="Appointments"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div ref={appointmentChartRef}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={appointmentData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="count"
+                        stroke="hsl(var(--primary))"
+                        fill="hsl(var(--primary) / 0.2)"
+                        name="Appointments"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
