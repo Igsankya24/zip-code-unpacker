@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Bot, MessageCircle, Calendar, Clock } from "lucide-react";
+import { Save, Bot, MessageCircle, Calendar, Clock, Mail, Phone, Bell } from "lucide-react";
 
 interface Settings {
   [key: string]: string;
@@ -412,6 +412,150 @@ const AdminBot = () => {
               checked={settings.bot_show_services_fallback === "true"}
               onCheckedChange={(checked) => updateSetting("bot_show_services_fallback", checked.toString())}
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Auto Messaging/Notifications */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <div className="flex items-center gap-2">
+          <Bell className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">Auto Notifications</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Control automatic email and SMS notifications to customers and technicians
+        </p>
+        
+        <div className="space-y-4 pt-4 border-t border-border">
+          {/* Email Notifications */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Mail className="w-4 h-4 text-blue-500" />
+              Email Notifications
+            </div>
+            
+            <div className="ml-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Booking Confirmation Email</p>
+                  <p className="text-xs text-muted-foreground">Send email to customer when appointment is booked</p>
+                </div>
+                <Switch
+                  checked={settings.auto_email_booking === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_email_booking", checked.toString())}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Appointment Confirmation Email</p>
+                  <p className="text-xs text-muted-foreground">Send email when appointment is confirmed by admin</p>
+                </div>
+                <Switch
+                  checked={settings.auto_email_confirmation === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_email_confirmation", checked.toString())}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Appointment Reminder Email</p>
+                  <p className="text-xs text-muted-foreground">Send reminder email before appointment</p>
+                </div>
+                <Switch
+                  checked={settings.auto_email_reminder === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_email_reminder", checked.toString())}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Technician Assignment Email</p>
+                  <p className="text-xs text-muted-foreground">Notify technician when assigned to appointment</p>
+                </div>
+                <Switch
+                  checked={settings.auto_email_technician === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_email_technician", checked.toString())}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SMS Notifications */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Phone className="w-4 h-4 text-green-500" />
+              SMS Notifications
+            </div>
+            
+            <div className="ml-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Booking Confirmation SMS</p>
+                  <p className="text-xs text-muted-foreground">Send SMS to customer when appointment is booked</p>
+                </div>
+                <Switch
+                  checked={settings.auto_sms_booking === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_sms_booking", checked.toString())}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Appointment Confirmation SMS</p>
+                  <p className="text-xs text-muted-foreground">Send SMS when appointment is confirmed</p>
+                </div>
+                <Switch
+                  checked={settings.auto_sms_confirmation === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_sms_confirmation", checked.toString())}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Appointment Reminder SMS</p>
+                  <p className="text-xs text-muted-foreground">Send reminder SMS before appointment</p>
+                </div>
+                <Switch
+                  checked={settings.auto_sms_reminder === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_sms_reminder", checked.toString())}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Technician Assignment SMS</p>
+                  <p className="text-xs text-muted-foreground">Notify technician via SMS when assigned</p>
+                </div>
+                <Switch
+                  checked={settings.auto_sms_technician === "true"}
+                  onCheckedChange={(checked) => updateSetting("auto_sms_technician", checked.toString())}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Reminder Timing */}
+          <div className="pt-4 border-t border-border">
+            <label className="block text-sm font-medium mb-2">Reminder Time (hours before appointment)</label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min="1"
+                max="48"
+                value={settings.reminder_hours_before || "24"}
+                onChange={(e) => handleInputChange("reminder_hours_before", e.target.value)}
+                placeholder="24"
+                className="w-32"
+              />
+              <Button 
+                onClick={() => updateSetting("reminder_hours_before", settings.reminder_hours_before || "24")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">How many hours before the appointment to send reminder</p>
           </div>
         </div>
       </div>

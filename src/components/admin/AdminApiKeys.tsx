@@ -165,6 +165,53 @@ const AdminApiKeys = () => {
     return <div className="flex items-center justify-center p-8">Loading...</div>;
   }
 
+  const suggestedApiKeys = [
+    {
+      name: "RESEND_API_KEY",
+      description: "For sending emails to customers and technicians",
+      provider: "Resend",
+      url: "https://resend.com/api-keys",
+      icon: "📧"
+    },
+    {
+      name: "TWILIO_ACCOUNT_SID",
+      description: "Twilio Account SID for SMS notifications",
+      provider: "Twilio",
+      url: "https://console.twilio.com/",
+      icon: "📱"
+    },
+    {
+      name: "TWILIO_AUTH_TOKEN",
+      description: "Twilio Auth Token for SMS authentication",
+      provider: "Twilio",
+      url: "https://console.twilio.com/",
+      icon: "🔐"
+    },
+    {
+      name: "TWILIO_PHONE_NUMBER",
+      description: "Twilio phone number to send SMS from",
+      provider: "Twilio",
+      url: "https://console.twilio.com/",
+      icon: "📞"
+    },
+    {
+      name: "MSG91_AUTH_KEY",
+      description: "MSG91 API key for SMS in India",
+      provider: "MSG91",
+      url: "https://msg91.com/",
+      icon: "💬"
+    },
+    {
+      name: "WHATSAPP_API_KEY",
+      description: "WhatsApp Business API key for messaging",
+      provider: "WhatsApp Business",
+      url: "https://developers.facebook.com/",
+      icon: "📲"
+    }
+  ];
+
+  const configuredKeyNames = apiKeys.map(k => k.key_name);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -178,6 +225,58 @@ const AdminApiKeys = () => {
           <Plus className="w-4 h-4 mr-2" />
           Add API Key
         </Button>
+      </div>
+
+      {/* Suggested API Keys */}
+      <div className="bg-card rounded-xl border border-border p-4 space-y-4">
+        <h3 className="font-semibold text-foreground">Recommended API Keys</h3>
+        <p className="text-sm text-muted-foreground">
+          These API keys are recommended for sending emails and SMS to customers and technicians.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {suggestedApiKeys.map((suggested) => {
+            const isConfigured = configuredKeyNames.includes(suggested.name);
+            return (
+              <div
+                key={suggested.name}
+                className={`p-3 rounded-lg border ${isConfigured ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-muted/30'}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{suggested.icon}</span>
+                    <div>
+                      <p className="font-medium text-sm">{suggested.name}</p>
+                      <p className="text-xs text-muted-foreground">{suggested.description}</p>
+                    </div>
+                  </div>
+                  {isConfigured ? (
+                    <Badge variant="default" className="bg-green-500">Configured</Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFormData({ key_name: suggested.name, key_value: "", description: suggested.description, is_active: true });
+                        setEditingKey(null);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      Add
+                    </Button>
+                  )}
+                </div>
+                <a
+                  href={suggested.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline mt-2 inline-block"
+                >
+                  Get from {suggested.provider} →
+                </a>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="grid gap-4">
@@ -243,7 +342,7 @@ const AdminApiKeys = () => {
           <div className="text-center py-8 text-muted-foreground bg-card rounded-xl border border-border">
             <Key className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No API keys configured yet.</p>
-            <p className="text-sm">Add API keys for services like Resend (email), etc.</p>
+            <p className="text-sm">Add API keys for services like Resend (email), Twilio (SMS), etc.</p>
           </div>
         )}
       </div>

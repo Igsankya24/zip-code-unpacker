@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, FileSpreadsheet, FileText, File, Download, Trash2, Key, Shield } from "lucide-react";
+import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, FileSpreadsheet, FileText, File, Download, Trash2, Key, Shield, LogIn, CalendarCheck, Eye } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
@@ -50,6 +50,8 @@ interface UserProfile {
   is_frozen: boolean;
   created_at: string;
   role?: string;
+  login_count?: number;
+  appointment_count?: number;
 }
 
 const AdminUsers = () => {
@@ -89,6 +91,32 @@ const AdminUsers = () => {
       .from("user_roles")
       .select("user_id, role");
 
+    // Get session counts per user
+    const { data: sessions } = await supabase
+      .from("sessions")
+      .select("user_id");
+
+    // Get appointment counts per user
+    const { data: appointments } = await supabase
+      .from("appointments")
+      .select("user_id");
+
+    // Count sessions per user
+    const sessionCounts: Record<string, number> = {};
+    sessions?.forEach((s) => {
+      if (s.user_id) {
+        sessionCounts[s.user_id] = (sessionCounts[s.user_id] || 0) + 1;
+      }
+    });
+
+    // Count appointments per user
+    const appointmentCounts: Record<string, number> = {};
+    appointments?.forEach((a) => {
+      if (a.user_id) {
+        appointmentCounts[a.user_id] = (appointmentCounts[a.user_id] || 0) + 1;
+      }
+    });
+
     const rolesMap: Record<string, string> = {};
     roles?.forEach((r) => {
       if (r.role === "super_admin" || (r.role === "admin" && !rolesMap[r.user_id])) {
@@ -102,6 +130,8 @@ const AdminUsers = () => {
       ...p,
       role: rolesMap[p.user_id] || "user",
       is_frozen: (p as any).is_frozen ?? false,
+      login_count: sessionCounts[p.user_id] || 0,
+      appointment_count: appointmentCounts[p.user_id] || 0,
     })) || [];
 
     setUsers(usersWithRoles);
@@ -368,6 +398,7 @@ const AdminUsers = () => {
               <tr>
                 <th className="p-4 text-left text-sm font-medium">User</th>
                 <th className="p-4 text-left text-sm font-medium hidden md:table-cell">Contact</th>
+                <th className="p-4 text-left text-sm font-medium hidden lg:table-cell">Activity</th>
                 <th className="p-4 text-left text-sm font-medium">Role</th>
                 <th className="p-4 text-left text-sm font-medium">Status</th>
                 <th className="p-4 text-left text-sm font-medium">Actions</th>
@@ -394,6 +425,18 @@ const AdminUsers = () => {
                       {user.address && (
                         <p className="text-muted-foreground/70 truncate max-w-[150px]">{user.address}</p>
                       )}
+                    </div>
+                  </td>
+                  <td className="p-4 hidden lg:table-cell">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <LogIn className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-muted-foreground">{user.login_count || 0} logins</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CalendarCheck className="w-3.5 h-3.5 text-green-500" />
+                        <span className="text-muted-foreground">{user.appointment_count || 0} appointments</span>
+                      </div>
                     </div>
                   </td>
                   <td className="p-4">
@@ -497,7 +540,7 @@ const AdminUsers = () => {
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
                     No users found.
                   </td>
                 </tr>
