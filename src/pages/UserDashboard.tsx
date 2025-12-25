@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, CheckCircle, XCircle, Calendar, LogOut, Home } from "lucide-react";
+import { Clock, CheckCircle, XCircle, Calendar, LogOut, Home, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 interface UserAccess {
@@ -24,6 +24,7 @@ interface Appointment {
   status: string;
   notes: string | null;
   service_name?: string;
+  source?: string;
 }
 
 const UserDashboard = () => {
@@ -86,14 +87,16 @@ const UserDashboard = () => {
       });
     }
 
-    // Fetch user appointments
+    // Fetch user appointments - both directly linked and via chatbot
     const { data: appointmentsData, error: appointmentsError } = await supabase
       .from("appointments")
       .select("id, reference_id, service_id, appointment_date, appointment_time, status, notes")
       .eq("user_id", user.id)
       .order("appointment_date", { ascending: false });
 
-    console.log("Fetched appointments for user:", user.id, appointmentsData, appointmentsError);
+    if (appointmentsError) {
+      console.error("Error fetching appointments:", appointmentsError);
+    }
 
     if (appointmentsData && appointmentsData.length > 0) {
       const serviceIds = [...new Set(appointmentsData.filter(a => a.service_id).map(a => a.service_id))] as string[];
@@ -111,6 +114,7 @@ const UserDashboard = () => {
         appointmentsData.map(a => ({
           ...a,
           service_name: a.service_id ? servicesMap[a.service_id] : undefined,
+          source: a.notes?.toLowerCase().includes("chatbot") ? "chatbot" : "booking",
         }))
       );
     } else {
@@ -259,11 +263,15 @@ const UserDashboard = () => {
 
         {/* Appointments */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Your Appointments
             </CardTitle>
+            <Button variant="outline" size="sm" onClick={fetchUserData} disabled={loadingData}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loadingData ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </CardHeader>
           <CardContent>
             {appointments.length === 0 ? (
@@ -287,11 +295,18 @@ const UserDashboard = () => {
                           {format(new Date(appointment.appointment_date), "PPP")} at{" "}
                           {appointment.appointment_time}
                         </p>
-                        {appointment.reference_id && (
-                          <p className="text-xs text-muted-foreground font-mono">
-                            Ref: {appointment.reference_id}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {appointment.reference_id && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              Ref: {appointment.reference_id}
+                            </span>
+                          )}
+                          {appointment.source === "chatbot" && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                              via Chatbot
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <span
