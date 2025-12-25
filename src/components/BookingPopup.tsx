@@ -202,8 +202,12 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
       return;
     }
 
-    // If not logged in, allow a guest booking (old flow) but store it as an appointment
-    if (!user) {
+    // Get fresh user state from supabase auth
+    const { data: authData } = await supabase.auth.getUser();
+    const currentUser = authData?.user;
+
+    // If not logged in, allow a guest booking but store it as an appointment
+    if (!currentUser) {
       if (!guestDetails.name || !guestDetails.email || !guestDetails.phone) {
         toast({ title: "Missing details", description: "Please enter your name, email and phone", variant: "destructive" });
         return;
@@ -217,12 +221,12 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
     if (appliedCoupon) {
       noteParts.push(`Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)`);
     }
-    if (!user) {
+    if (!currentUser) {
       noteParts.push(`Guest details: Name=${guestDetails.name}, Email=${guestDetails.email}, Phone=${guestDetails.phone}`);
     }
 
     const insertData = {
-      user_id: user ? user.id : null,
+      user_id: currentUser ? currentUser.id : null,
       service_id: selectedService,
       appointment_date: format(selectedDate, "yyyy-MM-dd"),
       appointment_time: convertTo24Hr(selectedTime),
@@ -230,7 +234,7 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
       notes: noteParts.length ? noteParts.join(" | ") : null,
     };
     
-    console.log("Inserting appointment with data:", insertData, "User:", user);
+    console.log("BookingPopup inserting appointment:", insertData);
 
     const { error, data } = await supabase
       .from("appointments")

@@ -485,7 +485,9 @@ const Chatbot = () => {
     const appointmentTime = convertTo24Hr(selectedTime);
 
     // Try to get current user
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const { data: authData } = await supabase.auth.getUser();
+    const currentUser = authData?.user;
+    console.log("Chatbot booking - currentUser:", currentUser?.id, currentUser?.email);
 
     const notes = `Booked via chatbot${appliedCoupon ? ` | Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? ` | Final Price: ₹${finalPrice.toFixed(0)}` : ""}`;
 
