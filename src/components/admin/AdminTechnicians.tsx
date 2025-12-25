@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, User, Phone, Mail, Briefcase } from "lucide-react";
+import { Plus, Edit, Trash2, User, Phone, Mail, Briefcase, MapPin, Upload, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Technician {
   id: string;
@@ -21,6 +23,8 @@ interface Technician {
   email: string | null;
   phone: string | null;
   specialization: string | null;
+  address: string | null;
+  photo_url: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -30,13 +34,17 @@ const AdminTechnicians = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTechnician, setEditingTechnician] = useState<Technician | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     specialization: "",
+    address: "",
+    photo_url: "",
     is_active: true,
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,7 +68,7 @@ const AdminTechnicians = () => {
 
   const openAddDialog = () => {
     setEditingTechnician(null);
-    setFormData({ name: "", email: "", phone: "", specialization: "", is_active: true });
+    setFormData({ name: "", email: "", phone: "", specialization: "", address: "", photo_url: "", is_active: true });
     setDialogOpen(true);
   };
 
@@ -71,9 +79,52 @@ const AdminTechnicians = () => {
       email: technician.email || "",
       phone: technician.phone || "",
       specialization: technician.specialization || "",
+      address: technician.address || "",
+      photo_url: technician.photo_url || "",
       is_active: technician.is_active,
     });
     setDialogOpen(true);
+  };
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Error", description: "Please select an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("technician-photos")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      toast({ title: "Error", description: uploadError.message, variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("technician-photos")
+      .getPublicUrl(fileName);
+
+    setFormData({ ...formData, photo_url: urlData.publicUrl });
+    setUploading(false);
+    toast({ title: "Success", description: "Photo uploaded" });
+  };
+
+  const removePhoto = () => {
+    setFormData({ ...formData, photo_url: "" });
   };
 
   const handleSubmit = async () => {
@@ -87,6 +138,8 @@ const AdminTechnicians = () => {
       email: formData.email.trim() || null,
       phone: formData.phone.trim() || null,
       specialization: formData.specialization.trim() || null,
+      address: formData.address.trim() || null,
+      photo_url: formData.photo_url || null,
       is_active: formData.is_active,
     };
 
@@ -164,9 +217,14 @@ const AdminTechnicians = () => {
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary" />
-                </div>
+                <Avatar className="w-12 h-12">
+                  {tech.photo_url ? (
+                    <AvatarImage src={tech.photo_url} alt={tech.name} />
+                  ) : null}
+                  <AvatarFallback className="bg-primary/10">
+                    <User className="w-6 h-6 text-primary" />
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <h3 className="font-medium text-foreground">{tech.name}</h3>
                   {tech.specialization && (
@@ -190,6 +248,12 @@ const AdminTechnicians = () => {
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Phone className="w-4 h-4" />
                   {tech.phone}
+                </div>
+              )}
+              {tech.address && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MapPin className="w-4 h-4" />
+                  <span className="truncate">{tech.address}</span>
                 </div>
               )}
             </div>
@@ -222,13 +286,57 @@ const AdminTechnicians = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingTechnician ? "Edit Technician" : "Add Technician"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Photo Upload */}
+            <div className="space-y-2">
+              <Label>Photo</Label>
+              <div className="flex items-center gap-4">
+                <Avatar className="w-16 h-16">
+                  {formData.photo_url ? (
+                    <AvatarImage src={formData.photo_url} alt="Technician" />
+                  ) : null}
+                  <AvatarFallback className="bg-primary/10">
+                    <User className="w-8 h-8 text-primary" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? "Uploading..." : "Upload"}
+                  </Button>
+                  {formData.photo_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removePhoto}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
               <Input
@@ -258,6 +366,16 @@ const AdminTechnicians = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Textarea
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Enter full address"
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="specialization">Specialization</Label>
               <Input
                 id="specialization"
@@ -279,7 +397,7 @@ const AdminTechnicians = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} disabled={uploading}>
               {editingTechnician ? "Update" : "Add"} Technician
             </Button>
           </DialogFooter>
