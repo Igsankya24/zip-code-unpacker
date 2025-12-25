@@ -32,6 +32,18 @@ interface Permissions {
   can_manage_coupons: boolean;
   can_view_settings: boolean;
   can_manage_settings: boolean;
+  can_view_invoices: boolean;
+  can_manage_invoices: boolean;
+  can_view_technicians: boolean;
+  can_manage_technicians: boolean;
+  can_view_analytics: boolean;
+  can_export_data: boolean;
+  can_view_api_keys: boolean;
+  can_manage_api_keys: boolean;
+  can_view_bot_settings: boolean;
+  can_manage_bot_settings: boolean;
+  can_view_deletion_requests: boolean;
+  can_manage_deletion_requests: boolean;
 }
 
 const defaultPermissions: Permissions = {
@@ -47,6 +59,18 @@ const defaultPermissions: Permissions = {
   can_manage_coupons: false,
   can_view_settings: false,
   can_manage_settings: false,
+  can_view_invoices: true,
+  can_manage_invoices: false,
+  can_view_technicians: true,
+  can_manage_technicians: false,
+  can_view_analytics: true,
+  can_export_data: true,
+  can_view_api_keys: false,
+  can_manage_api_keys: false,
+  can_view_bot_settings: true,
+  can_manage_bot_settings: false,
+  can_view_deletion_requests: true,
+  can_manage_deletion_requests: false,
 };
 
 const AdminPermissions = () => {
@@ -133,6 +157,18 @@ const AdminPermissions = () => {
         can_manage_coupons: data.can_manage_coupons ?? false,
         can_view_settings: data.can_view_settings ?? false,
         can_manage_settings: data.can_manage_settings ?? false,
+        can_view_invoices: data.can_view_invoices ?? true,
+        can_manage_invoices: data.can_manage_invoices ?? false,
+        can_view_technicians: data.can_view_technicians ?? true,
+        can_manage_technicians: data.can_manage_technicians ?? false,
+        can_view_analytics: data.can_view_analytics ?? true,
+        can_export_data: data.can_export_data ?? true,
+        can_view_api_keys: data.can_view_api_keys ?? false,
+        can_manage_api_keys: data.can_manage_api_keys ?? false,
+        can_view_bot_settings: data.can_view_bot_settings ?? true,
+        can_manage_bot_settings: data.can_manage_bot_settings ?? false,
+        can_view_deletion_requests: data.can_view_deletion_requests ?? true,
+        can_manage_deletion_requests: data.can_manage_deletion_requests ?? false,
       });
     } else {
       setPermissions(defaultPermissions);
@@ -312,6 +348,90 @@ const AdminPermissions = () => {
                   label="Manage Settings" 
                   permKey="can_manage_settings" 
                   description="Can modify site settings"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Invoices</h4>
+                <PermissionRow 
+                  label="View Invoices" 
+                  permKey="can_view_invoices" 
+                  description="Can view invoices"
+                />
+                <PermissionRow 
+                  label="Manage Invoices" 
+                  permKey="can_manage_invoices" 
+                  description="Can create, edit, delete invoices"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Technicians</h4>
+                <PermissionRow 
+                  label="View Technicians" 
+                  permKey="can_view_technicians" 
+                  description="Can view technicians list"
+                />
+                <PermissionRow 
+                  label="Manage Technicians" 
+                  permKey="can_manage_technicians" 
+                  description="Can add, edit, delete technicians"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Analytics & Export</h4>
+                <PermissionRow 
+                  label="View Analytics" 
+                  permKey="can_view_analytics" 
+                  description="Can view analytics dashboard"
+                />
+                <PermissionRow 
+                  label="Export Data" 
+                  permKey="can_export_data" 
+                  description="Can export data to Excel, PDF, Word"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">API Keys</h4>
+                <PermissionRow 
+                  label="View API Keys" 
+                  permKey="can_view_api_keys" 
+                  description="Can view API keys (sensitive)"
+                />
+                <PermissionRow 
+                  label="Manage API Keys" 
+                  permKey="can_manage_api_keys" 
+                  description="Can add, edit, delete API keys"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Bot Settings</h4>
+                <PermissionRow 
+                  label="View Bot Settings" 
+                  permKey="can_view_bot_settings" 
+                  description="Can view chatbot and notification settings"
+                />
+                <PermissionRow 
+                  label="Manage Bot Settings" 
+                  permKey="can_manage_bot_settings" 
+                  description="Can modify bot and notification settings"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Deletion Requests</h4>
+                <PermissionRow 
+                  label="View Deletion Requests" 
+                  permKey="can_view_deletion_requests" 
+                  description="Can view pending deletion requests"
+                />
+                <PermissionRow 
+                  label="Manage Deletion Requests" 
+                  permKey="can_manage_deletion_requests" 
+                  description="Can approve or reject deletion requests"
                 />
               </div>
 

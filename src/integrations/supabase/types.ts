@@ -18,15 +18,27 @@ export type Database = {
         Row: {
           can_confirm_appointments: boolean | null
           can_delete_appointments: boolean | null
+          can_export_data: boolean | null
+          can_manage_api_keys: boolean | null
+          can_manage_bot_settings: boolean | null
           can_manage_coupons: boolean | null
+          can_manage_deletion_requests: boolean | null
+          can_manage_invoices: boolean | null
           can_manage_services: boolean | null
           can_manage_settings: boolean | null
+          can_manage_technicians: boolean | null
           can_manage_users: boolean | null
+          can_view_analytics: boolean | null
+          can_view_api_keys: boolean | null
           can_view_appointments: boolean | null
+          can_view_bot_settings: boolean | null
           can_view_coupons: boolean | null
+          can_view_deletion_requests: boolean | null
+          can_view_invoices: boolean | null
           can_view_messages: boolean | null
           can_view_services: boolean | null
           can_view_settings: boolean | null
+          can_view_technicians: boolean | null
           can_view_users: boolean | null
           created_at: string | null
           id: string
@@ -36,15 +48,27 @@ export type Database = {
         Insert: {
           can_confirm_appointments?: boolean | null
           can_delete_appointments?: boolean | null
+          can_export_data?: boolean | null
+          can_manage_api_keys?: boolean | null
+          can_manage_bot_settings?: boolean | null
           can_manage_coupons?: boolean | null
+          can_manage_deletion_requests?: boolean | null
+          can_manage_invoices?: boolean | null
           can_manage_services?: boolean | null
           can_manage_settings?: boolean | null
+          can_manage_technicians?: boolean | null
           can_manage_users?: boolean | null
+          can_view_analytics?: boolean | null
+          can_view_api_keys?: boolean | null
           can_view_appointments?: boolean | null
+          can_view_bot_settings?: boolean | null
           can_view_coupons?: boolean | null
+          can_view_deletion_requests?: boolean | null
+          can_view_invoices?: boolean | null
           can_view_messages?: boolean | null
           can_view_services?: boolean | null
           can_view_settings?: boolean | null
+          can_view_technicians?: boolean | null
           can_view_users?: boolean | null
           created_at?: string | null
           id?: string
@@ -54,15 +78,27 @@ export type Database = {
         Update: {
           can_confirm_appointments?: boolean | null
           can_delete_appointments?: boolean | null
+          can_export_data?: boolean | null
+          can_manage_api_keys?: boolean | null
+          can_manage_bot_settings?: boolean | null
           can_manage_coupons?: boolean | null
+          can_manage_deletion_requests?: boolean | null
+          can_manage_invoices?: boolean | null
           can_manage_services?: boolean | null
           can_manage_settings?: boolean | null
+          can_manage_technicians?: boolean | null
           can_manage_users?: boolean | null
+          can_view_analytics?: boolean | null
+          can_view_api_keys?: boolean | null
           can_view_appointments?: boolean | null
+          can_view_bot_settings?: boolean | null
           can_view_coupons?: boolean | null
+          can_view_deletion_requests?: boolean | null
+          can_view_invoices?: boolean | null
           can_view_messages?: boolean | null
           can_view_services?: boolean | null
           can_view_settings?: boolean | null
+          can_view_technicians?: boolean | null
           can_view_users?: boolean | null
           created_at?: string | null
           id?: string
@@ -564,7 +600,11 @@ export type Database = {
           can_apply_coupons: boolean | null
           can_book_appointments: boolean | null
           can_contact_support: boolean | null
+          can_receive_notifications: boolean | null
+          can_track_appointments: boolean | null
+          can_update_profile: boolean | null
           can_use_chatbot: boolean | null
+          can_view_invoices: boolean | null
           can_view_services: boolean | null
           created_at: string | null
           id: string
@@ -576,7 +616,11 @@ export type Database = {
           can_apply_coupons?: boolean | null
           can_book_appointments?: boolean | null
           can_contact_support?: boolean | null
+          can_receive_notifications?: boolean | null
+          can_track_appointments?: boolean | null
+          can_update_profile?: boolean | null
           can_use_chatbot?: boolean | null
+          can_view_invoices?: boolean | null
           can_view_services?: boolean | null
           created_at?: string | null
           id?: string
@@ -588,7 +632,11 @@ export type Database = {
           can_apply_coupons?: boolean | null
           can_book_appointments?: boolean | null
           can_contact_support?: boolean | null
+          can_receive_notifications?: boolean | null
+          can_track_appointments?: boolean | null
+          can_update_profile?: boolean | null
           can_use_chatbot?: boolean | null
+          can_view_invoices?: boolean | null
           can_view_services?: boolean | null
           created_at?: string | null
           id?: string

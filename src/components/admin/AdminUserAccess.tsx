@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Settings, RefreshCw, Save, Calendar, Eye, MessageSquare, Ticket, Phone } from "lucide-react";
+import { Search, Settings, RefreshCw, Save, Calendar, Eye, MessageSquare, Ticket, Phone, Bell, FileText, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface UserWithAccess {
@@ -36,6 +36,10 @@ interface UserWithAccess {
     can_use_chatbot: boolean;
     can_apply_coupons: boolean;
     can_contact_support: boolean;
+    can_view_invoices: boolean;
+    can_track_appointments: boolean;
+    can_receive_notifications: boolean;
+    can_update_profile: boolean;
     notes: string | null;
   } | null;
 }
@@ -46,6 +50,10 @@ const defaultAccess = {
   can_use_chatbot: true,
   can_apply_coupons: true,
   can_contact_support: true,
+  can_view_invoices: true,
+  can_track_appointments: true,
+  can_receive_notifications: true,
+  can_update_profile: true,
   notes: null,
 };
 
@@ -93,6 +101,10 @@ const AdminUserAccess = () => {
               can_use_chatbot: userAccess.can_use_chatbot ?? true,
               can_apply_coupons: userAccess.can_apply_coupons ?? true,
               can_contact_support: userAccess.can_contact_support ?? true,
+              can_view_invoices: userAccess.can_view_invoices ?? true,
+              can_track_appointments: userAccess.can_track_appointments ?? true,
+              can_receive_notifications: userAccess.can_receive_notifications ?? true,
+              can_update_profile: userAccess.can_update_profile ?? true,
               notes: userAccess.notes,
             }
           : null,
@@ -137,13 +149,17 @@ const AdminUserAccess = () => {
   };
 
   const getAccessCount = (access: UserWithAccess["access"]) => {
-    if (!access) return 5; // All enabled by default
+    if (!access) return 9; // All enabled by default
     return [
       access.can_book_appointments,
       access.can_view_services,
       access.can_use_chatbot,
       access.can_apply_coupons,
       access.can_contact_support,
+      access.can_view_invoices,
+      access.can_track_appointments,
+      access.can_receive_notifications,
+      access.can_update_profile,
     ].filter(Boolean).length;
   };
 
@@ -198,6 +214,22 @@ const AdminUserAccess = () => {
             <Phone className="w-4 h-4" />
             <span>Contact Support</span>
           </div>
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            <span>View Invoices</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            <span>Track Appointments</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4" />
+            <span>Receive Notifications</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4" />
+            <span>Update Profile</span>
+          </div>
         </div>
       </div>
 
@@ -237,8 +269,8 @@ const AdminUserAccess = () => {
                   <TableCell className="font-medium">{user.full_name || "No Name"}</TableCell>
                   <TableCell>{user.email || "No Email"}</TableCell>
                   <TableCell>
-                    <Badge variant={getAccessCount(user.access) === 5 ? "default" : "secondary"}>
-                      {getAccessCount(user.access)}/5 features
+                    <Badge variant={getAccessCount(user.access) === 9 ? "default" : "secondary"}>
+                      {getAccessCount(user.access)}/9 features
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -352,6 +384,70 @@ const AdminUserAccess = () => {
                 checked={editAccess.can_contact_support}
                 onCheckedChange={(checked) =>
                   setEditAccess({ ...editAccess, can_contact_support: checked })
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  View Invoices
+                </Label>
+                <p className="text-xs text-muted-foreground">Can view their invoices</p>
+              </div>
+              <Switch
+                checked={editAccess.can_view_invoices}
+                onCheckedChange={(checked) =>
+                  setEditAccess({ ...editAccess, can_view_invoices: checked })
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-2">
+                  <Search className="w-4 h-4" />
+                  Track Appointments
+                </Label>
+                <p className="text-xs text-muted-foreground">Can track appointment status</p>
+              </div>
+              <Switch
+                checked={editAccess.can_track_appointments}
+                onCheckedChange={(checked) =>
+                  setEditAccess({ ...editAccess, can_track_appointments: checked })
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-2">
+                  <Bell className="w-4 h-4" />
+                  Receive Notifications
+                </Label>
+                <p className="text-xs text-muted-foreground">Can receive email/SMS notifications</p>
+              </div>
+              <Switch
+                checked={editAccess.can_receive_notifications}
+                onCheckedChange={(checked) =>
+                  setEditAccess({ ...editAccess, can_receive_notifications: checked })
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Update Profile
+                </Label>
+                <p className="text-xs text-muted-foreground">Can update their profile</p>
+              </div>
+              <Switch
+                checked={editAccess.can_update_profile}
+                onCheckedChange={(checked) =>
+                  setEditAccess({ ...editAccess, can_update_profile: checked })
                 }
               />
             </div>

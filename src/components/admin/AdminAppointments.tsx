@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send, Check, X, CheckCircle, Receipt, Search, Eye, User, Wrench, Clock, Phone, Mail, MapPin, FileTextIcon } from "lucide-react";
-import { format } from "date-fns";
+import { Trash2, Calendar, Send, Check, X, CheckCircle, Receipt, Search, Eye, User, Wrench, Clock, Phone, Mail, MapPin, FileTextIcon } from "lucide-react";
+import { format, isWithinInterval, parseISO } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Select,
@@ -13,12 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 import { Badge } from "@/components/ui/badge";
+import ExportDateRange from "./ExportDateRange";
 
 interface AdminAppointmentsProps {
   onNavigateToInvoice?: (appointmentId: string) => void;
@@ -271,8 +266,21 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
     }
   };
 
-  const handleExport = (type: 'excel' | 'pdf' | 'word') => {
-    const exportData = filteredAppointments.map(a => ({
+  const handleExport = (type: 'excel' | 'pdf' | 'word', fromDate: string | null, toDate: string | null) => {
+    let dataToExport = filteredAppointments;
+
+    // Filter by date range if provided
+    if (fromDate && toDate) {
+      dataToExport = dataToExport.filter(a => {
+        const appointmentDate = parseISO(a.appointment_date);
+        return isWithinInterval(appointmentDate, {
+          start: parseISO(fromDate),
+          end: parseISO(toDate)
+        });
+      });
+    }
+
+    const exportData = dataToExport.map(a => ({
       'Ref ID': a.reference_id || '-',
       Customer: a.user_name || 'Unknown',
       Email: a.user_email || '-',
@@ -285,7 +293,10 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       Created: format(new Date(a.created_at), "MMM d, yyyy")
     }));
 
-    const filename = `appointments_${format(new Date(), 'yyyy-MM-dd')}`;
+    const dateRangeStr = fromDate && toDate 
+      ? `_${fromDate}_to_${toDate}` 
+      : '';
+    const filename = `appointments${dateRangeStr}_${format(new Date(), 'yyyy-MM-dd')}`;
     
     switch (type) {
       case 'excel':
@@ -299,7 +310,7 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
         break;
     }
     
-    toast({ title: "Success", description: `Exported to ${type.toUpperCase()}` });
+    toast({ title: "Success", description: `Exported ${exportData.length} records to ${type.toUpperCase()}` });
   };
 
   if (loading) {
@@ -320,28 +331,7 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
               className="pl-10 w-48"
             />
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleExport('excel')}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Excel (.xlsx)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                <FileText className="w-4 h-4 mr-2" />
-                PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('word')}>
-                <File className="w-4 h-4 mr-2" />
-                Word (.doc)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ExportDateRange onExport={handleExport} />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Filter by status" />
