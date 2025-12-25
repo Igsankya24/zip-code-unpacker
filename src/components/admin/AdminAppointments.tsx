@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send, Check, X, CheckCircle, Receipt, Search } from "lucide-react";
+import { Trash2, Calendar, FileSpreadsheet, FileText, File, Download, Send, Check, X, CheckCircle, Receipt, Search, Eye, User, Wrench, Clock, Phone, Mail, MapPin, FileTextIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
+import { Badge } from "@/components/ui/badge";
 
 interface AdminAppointmentsProps {
   onNavigateToInvoice?: (appointmentId: string) => void;
@@ -46,7 +47,12 @@ interface Appointment {
   created_at: string;
   user_email?: string;
   user_name?: string;
+  user_phone?: string;
+  user_address?: string;
   service_name?: string;
+  service_description?: string;
+  service_price?: number;
+  service_duration?: number;
   technician_name?: string;
 }
 
@@ -64,6 +70,8 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
   const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
+  const [viewDetailsDialog, setViewDetailsDialog] = useState(false);
+  const [viewAppointment, setViewAppointment] = useState<Appointment | null>(null);
   const { toast } = useToast();
   const { user, isSuperAdmin, permissions } = useAuth();
 
@@ -114,20 +122,30 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
 
     const [profilesRes, servicesRes, techniciansRes] = await Promise.all([
       userIds.length > 0
-        ? supabase.from("profiles").select("user_id, email, full_name").in("user_id", userIds)
+        ? supabase.from("profiles").select("user_id, email, full_name, phone, address").in("user_id", userIds)
         : { data: [] as any[] },
-      serviceIds.length > 0 ? supabase.from("services").select("id, name").in("id", serviceIds) : { data: [] },
+      serviceIds.length > 0 ? supabase.from("services").select("id, name, description, price, duration_minutes").in("id", serviceIds) : { data: [] },
       technicianIds.length > 0 ? supabase.from("technicians").select("id, name").in("id", technicianIds) : { data: [] },
     ]);
 
-    const profilesMap: Record<string, { email: string; name: string }> = {};
+    const profilesMap: Record<string, { email: string; name: string; phone?: string; address?: string }> = {};
     profilesRes.data?.forEach(p => {
-      profilesMap[p.user_id] = { email: p.email || "", name: p.full_name || "" };
+      profilesMap[p.user_id] = { 
+        email: p.email || "", 
+        name: p.full_name || "",
+        phone: p.phone || undefined,
+        address: p.address || undefined
+      };
     });
 
-    const servicesMap: Record<string, string> = {};
+    const servicesMap: Record<string, { name: string; description?: string; price?: number; duration?: number }> = {};
     servicesRes.data?.forEach(s => {
-      servicesMap[s.id] = s.name;
+      servicesMap[s.id] = { 
+        name: s.name, 
+        description: s.description || undefined,
+        price: s.price || undefined,
+        duration: s.duration_minutes || undefined
+      };
     });
 
     const techniciansMap: Record<string, string> = {};
@@ -138,8 +156,13 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
     const enrichedAppointments = appointmentsData?.map(a => ({
       ...a,
       user_email: a.user_id ? profilesMap[a.user_id]?.email : undefined,
-      user_name: a.user_id ? profilesMap[a.user_id]?.name : "Guest",
-      service_name: a.service_id ? servicesMap[a.service_id] : undefined,
+      user_name: a.user_id ? profilesMap[a.user_id]?.name : undefined,
+      user_phone: a.user_id ? profilesMap[a.user_id]?.phone : undefined,
+      user_address: a.user_id ? profilesMap[a.user_id]?.address : undefined,
+      service_name: a.service_id ? servicesMap[a.service_id]?.name : undefined,
+      service_description: a.service_id ? servicesMap[a.service_id]?.description : undefined,
+      service_price: a.service_id ? servicesMap[a.service_id]?.price : undefined,
+      service_duration: a.service_id ? servicesMap[a.service_id]?.duration : undefined,
       technician_name: a.technician_id ? techniciansMap[a.technician_id] : undefined,
     })) || [];
 
@@ -358,12 +381,19 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
                   </td>
                   <td className="p-4">
                     <div>
-                      <p className="font-medium text-foreground">{appointment.user_name || "Unknown"}</p>
-                      <p className="text-sm text-muted-foreground">{appointment.user_email}</p>
+                      <p className="font-medium text-foreground">
+                        {appointment.user_name || (appointment.user_id ? "Unknown" : "Guest Booking")}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{appointment.user_email || "No email"}</p>
                     </div>
                   </td>
                   <td className="p-4 hidden md:table-cell">
-                    <span className="text-muted-foreground">{appointment.service_name || "-"}</span>
+                    <div>
+                      <p className="font-medium text-foreground">{appointment.service_name || "Not specified"}</p>
+                      {appointment.service_price && (
+                        <p className="text-xs text-muted-foreground">₹{appointment.service_price}</p>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -399,6 +429,20 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-1 flex-wrap">
+                      {/* View Details Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setViewAppointment(appointment);
+                          setViewDetailsDialog(true);
+                        }}
+                        className="text-primary hover:text-primary/80 hover:bg-primary/10"
+                        title="View appointment details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      
                       {/* Pending: Show Confirm and Cancel buttons */}
                       {appointment.status === "pending" && (
                         <>
@@ -523,6 +567,149 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
             <Button onClick={requestDeletion}>
               <Send className="w-4 h-4 mr-2" />
               Send Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={viewDetailsDialog} onOpenChange={setViewDetailsDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-primary" />
+              Appointment Details
+            </DialogTitle>
+          </DialogHeader>
+          {viewAppointment && (
+            <div className="space-y-6">
+              {/* Status Badge */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Reference ID</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                    {viewAppointment.reference_id || "-"}
+                  </span>
+                  <Badge className={getStatusColor(viewAppointment.status)}>
+                    {viewAppointment.status.charAt(0).toUpperCase() + viewAppointment.status.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Customer Information */}
+              <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold flex items-center gap-2 text-foreground">
+                  <User className="w-4 h-4" />
+                  Customer Information
+                </h4>
+                <div className="grid gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Name:</span>
+                    <span className="font-medium">
+                      {viewAppointment.user_name || (viewAppointment.user_id ? "Unknown" : "Guest Booking")}
+                    </span>
+                  </div>
+                  {viewAppointment.user_email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3 h-3 text-muted-foreground" />
+                      <span>{viewAppointment.user_email}</span>
+                    </div>
+                  )}
+                  {viewAppointment.user_phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3 h-3 text-muted-foreground" />
+                      <span>{viewAppointment.user_phone}</span>
+                    </div>
+                  )}
+                  {viewAppointment.user_address && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3 h-3 text-muted-foreground" />
+                      <span>{viewAppointment.user_address}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Service Information */}
+              <div className="bg-primary/5 rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold flex items-center gap-2 text-foreground">
+                  <Wrench className="w-4 h-4" />
+                  Service Requested
+                </h4>
+                <div className="grid gap-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Service:</span>
+                    <span className="font-medium text-primary">
+                      {viewAppointment.service_name || "Not specified"}
+                    </span>
+                  </div>
+                  {viewAppointment.service_description && (
+                    <p className="text-muted-foreground text-xs">
+                      {viewAppointment.service_description}
+                    </p>
+                  )}
+                  {viewAppointment.service_price && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Price:</span>
+                      <span className="font-medium">₹{viewAppointment.service_price}</span>
+                    </div>
+                  )}
+                  {viewAppointment.service_duration && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Duration:</span>
+                      <span>{viewAppointment.service_duration} minutes</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Appointment Schedule */}
+              <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold flex items-center gap-2 text-foreground">
+                  <Calendar className="w-4 h-4" />
+                  Schedule
+                </h4>
+                <div className="grid gap-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="font-medium">
+                      {format(new Date(viewAppointment.appointment_date), "EEEE, MMMM d, yyyy")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Time:</span>
+                    <span className="font-medium">{viewAppointment.appointment_time}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Technician:</span>
+                    <span className="font-medium">
+                      {viewAppointment.technician_name || "Not assigned"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {viewAppointment.notes && (
+                <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2 text-foreground">
+                    <FileTextIcon className="w-4 h-4" />
+                    Notes
+                  </h4>
+                  <p className="text-sm text-muted-foreground">{viewAppointment.notes}</p>
+                </div>
+              )}
+
+              {/* Created At */}
+              <div className="text-xs text-muted-foreground text-right">
+                <Clock className="w-3 h-3 inline mr-1" />
+                Created: {format(new Date(viewAppointment.created_at), "MMM d, yyyy 'at' h:mm a")}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDetailsDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
