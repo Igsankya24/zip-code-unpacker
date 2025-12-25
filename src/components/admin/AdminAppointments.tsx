@@ -575,19 +575,14 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       {/* View Details Dialog */}
       <Dialog open={viewDetailsDialog} onOpenChange={setViewDetailsDialog}>
         <DialogContent className="max-w-lg">
-          <DialogHeader className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-0 top-0 h-8 w-8 rounded-full"
-              onClick={() => setViewDetailsDialog(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+          <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-primary" />
               Appointment Details
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              View complete appointment information and take actions
+            </p>
           </DialogHeader>
           {viewAppointment && (
             <div className="space-y-6">
