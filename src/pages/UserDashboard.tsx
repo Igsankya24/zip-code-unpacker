@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Clock, CheckCircle, XCircle, Calendar, LogOut, Home, RefreshCw, CalendarClock } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Clock, CheckCircle, XCircle, Calendar, LogOut, Home, RefreshCw, CalendarClock, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -64,12 +65,16 @@ const convertTo24Hr = (time12: string): string => {
 };
 
 const UserDashboard = () => {
-  const { user, isApproved, isLoading, signOut, isAdmin } = useAuth();
+  const { user, isApproved, isLoading, signOut, isAdmin, userAccess } = useAuth();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  // Access restriction popup state
+  const [accessDeniedOpen, setAccessDeniedOpen] = useState(false);
+  const [deniedFeature, setDeniedFeature] = useState("");
   
   // Reschedule state
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -80,6 +85,16 @@ const UserDashboard = () => {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [slotSettings, setSlotSettings] = useState({ startTime: "09:00", endTime: "18:00", duration: 60 });
   const [rescheduling, setRescheduling] = useState(false);
+
+  // Check if user has access to a feature, show popup if not
+  const checkAccess = (feature: keyof typeof userAccess, featureName: string): boolean => {
+    if (!userAccess[feature]) {
+      setDeniedFeature(featureName);
+      setAccessDeniedOpen(true);
+      return false;
+    }
+    return true;
+  };
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -193,6 +208,7 @@ const UserDashboard = () => {
   };
 
   const openReschedule = (appointment: Appointment) => {
+    if (!checkAccess("can_book_appointments", "reschedule appointments")) return;
     setRescheduleAppointment(appointment);
     setRescheduleDate(undefined);
     setRescheduleTime("");
@@ -253,6 +269,11 @@ const UserDashboard = () => {
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
+    // Check access for cancellation
+    if (newStatus === "cancelled" && !checkAccess("can_book_appointments", "cancel appointments")) {
+      return;
+    }
+    
     setUpdatingId(id);
     const { error } = await supabase
       .from("appointments")
@@ -534,6 +555,26 @@ const UserDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Access Denied Dialog */}
+      <AlertDialog open={accessDeniedOpen} onOpenChange={setAccessDeniedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <ShieldAlert className="w-8 h-8 text-destructive" />
+            </div>
+            <AlertDialogTitle className="text-center">Access Restricted</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              You don't have permission to {deniedFeature}. Please contact your administrator to request access.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction onClick={() => setAccessDeniedOpen(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, User, Mail, Phone, Tag, Briefcase } from "lucide-react";
+import { Calendar, Clock, User, Mail, Phone, Tag, Briefcase, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -21,6 +21,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Service {
   id: string;
@@ -102,9 +111,23 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
     endTime: "18:00", 
     duration: 60 
   });
+  const [accessDeniedOpen, setAccessDeniedOpen] = useState(false);
+  const [deniedFeature, setDeniedFeature] = useState("");
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userAccess } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user has access to a feature
+  const checkAccess = (feature: keyof typeof userAccess, featureName: string): boolean => {
+    // Guest users can always book (access is checked for logged-in users only)
+    if (!user) return true;
+    if (!userAccess[feature]) {
+      setDeniedFeature(featureName);
+      setAccessDeniedOpen(true);
+      return false;
+    }
+    return true;
+  };
 
   // Generate time slots based on settings
   const timeSlots = generateTimeSlots(slotSettings.startTime, slotSettings.endTime, slotSettings.duration);
@@ -240,6 +263,11 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
   };
 
   const handleSubmit = async () => {
+    // Check access for logged-in users
+    if (user && !checkAccess("can_book_appointments", "book appointments")) {
+      return;
+    }
+
     if (!selectedService || !selectedDate || !selectedTime) {
       toast({ title: "Error", description: "Please complete all steps", variant: "destructive" });
       return;
@@ -538,6 +566,30 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Access Denied Dialog */}
+      <AlertDialog open={accessDeniedOpen} onOpenChange={setAccessDeniedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <ShieldAlert className="w-8 h-8 text-destructive" />
+            </div>
+            <AlertDialogTitle className="text-center">Access Restricted</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              You don't have permission to {deniedFeature}. Please contact your administrator to request access.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction onClick={() => {
+              setAccessDeniedOpen(false);
+              setIsOpen(false);
+              navigate("/dashboard");
+            }}>
+              Go to Dashboard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
