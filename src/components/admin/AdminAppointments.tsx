@@ -575,7 +575,15 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       {/* View Details Dialog */}
       <Dialog open={viewDetailsDialog} onOpenChange={setViewDetailsDialog}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
+          <DialogHeader className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 h-8 w-8 rounded-full"
+              onClick={() => setViewDetailsDialog(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-primary" />
               Appointment Details
@@ -707,11 +715,113 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewDetailsDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
+          
+          {/* Action Buttons */}
+          {viewAppointment && (
+            <DialogFooter className="flex-col sm:flex-row gap-2 border-t pt-4">
+              {/* Pending Actions */}
+              {viewAppointment.status === "pending" && (
+                <>
+                  <Button
+                    variant="default"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => {
+                      updateStatus(viewAppointment.id, "confirmed");
+                      setViewDetailsDialog(false);
+                    }}
+                    disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      updateStatus(viewAppointment.id, "cancelled");
+                      setViewDetailsDialog(false);
+                    }}
+                    disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </>
+              )}
+              
+              {/* Confirmed Actions */}
+              {viewAppointment.status === "confirmed" && (
+                <>
+                  <Button
+                    variant="default"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => {
+                      updateStatus(viewAppointment.id, "completed");
+                      setViewDetailsDialog(false);
+                    }}
+                    disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Mark Completed
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      updateStatus(viewAppointment.id, "cancelled");
+                      setViewDetailsDialog(false);
+                    }}
+                    disabled={!permissions.can_confirm_appointments && !isSuperAdmin}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </>
+              )}
+              
+              {/* Completed Actions */}
+              {viewAppointment.status === "completed" && onNavigateToInvoice && (
+                <Button
+                  variant="default"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={() => {
+                    onNavigateToInvoice(viewAppointment.id);
+                    setViewDetailsDialog(false);
+                  }}
+                >
+                  <Receipt className="w-4 h-4 mr-2" />
+                  Generate Invoice
+                </Button>
+              )}
+              
+              {/* Cancelled Status */}
+              {viewAppointment.status === "cancelled" && (
+                <span className="text-sm text-muted-foreground px-4 py-2">
+                  This appointment has been cancelled
+                </span>
+              )}
+              
+              {/* Delete/Request Deletion */}
+              <Button
+                variant="outline"
+                className="text-destructive border-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  setViewDetailsDialog(false);
+                  handleDeleteClick(viewAppointment);
+                }}
+              >
+                {isSuperAdmin || permissions.can_delete_appointments ? (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Request Deletion
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>
