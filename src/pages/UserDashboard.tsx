@@ -87,14 +87,16 @@ const UserDashboard = () => {
     }
 
     // Fetch user appointments
-    const { data: appointmentsData } = await supabase
+    const { data: appointmentsData, error: appointmentsError } = await supabase
       .from("appointments")
       .select("id, reference_id, service_id, appointment_date, appointment_time, status, notes")
       .eq("user_id", user.id)
       .order("appointment_date", { ascending: false });
 
+    console.log("Fetched appointments for user:", user.id, appointmentsData, appointmentsError);
+
     if (appointmentsData && appointmentsData.length > 0) {
-      const serviceIds = [...new Set(appointmentsData.filter(a => a.service_id).map(a => a.service_id))];
+      const serviceIds = [...new Set(appointmentsData.filter(a => a.service_id).map(a => a.service_id))] as string[];
       const { data: servicesData } = await supabase
         .from("services")
         .select("id, name")
@@ -111,6 +113,8 @@ const UserDashboard = () => {
           service_name: a.service_id ? servicesMap[a.service_id] : undefined,
         }))
       );
+    } else {
+      setAppointments([]);
     }
 
     setLoadingData(false);
