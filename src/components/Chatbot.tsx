@@ -41,7 +41,7 @@ interface BotSettings {
   whatsappFallbackEnabled: boolean;
 }
 
-type BookingStep = "chat" | "date" | "time" | "details" | "confirm" | "tracking";
+type BookingStep = "chat" | "date" | "time" | "details" | "confirm" | "tracking" | "tracking_input";
 
 // 3-hour appointment slots from 9 AM to 8 PM (last slot at 5 PM ends at 8 PM)
 const timeSlots = [
@@ -79,6 +79,25 @@ const Chatbot = () => {
   useEffect(() => {
     fetchSettings();
     fetchServices();
+    
+    // Listen for service booking from ServiceCard
+    const handleOpenChatbotBooking = (event: CustomEvent) => {
+      const { serviceId, serviceName } = event.detail;
+      setIsOpen(true);
+      setSelectedService(serviceId);
+      setMessages((prev) => [
+        ...prev,
+        { type: "user", text: `Book ${serviceName}` },
+        { type: "bot", text: `Great choice! Let's book "${serviceName}" for you. 📅 Each appointment is 3 hours long. Please select a date:` },
+      ]);
+      setStep("date");
+    };
+
+    window.addEventListener("openChatbotBooking", handleOpenChatbotBooking as EventListener);
+    
+    return () => {
+      window.removeEventListener("openChatbotBooking", handleOpenChatbotBooking as EventListener);
+    };
   }, []);
 
   useEffect(() => {
@@ -324,9 +343,9 @@ const Chatbot = () => {
       setTimeout(() => {
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-1001):" },
+          { type: "bot", text: "📋 Enter your appointment ID below and click Track to check status:" },
         ]);
-        setStep("tracking");
+        setStep("tracking_input");
       }, 500);
     } else if (lowerInput.includes("book") || lowerInput.includes("appointment") || lowerInput.includes("schedule")) {
       setTimeout(() => {
@@ -397,9 +416,9 @@ const Chatbot = () => {
       } else if (option === "Track Appointment") {
         setMessages((prev) => [
           ...prev,
-          { type: "bot", text: "Please enter your appointment reference ID (e.g., KTS-1001):\n\n💡 You can also type 'cancel' after tracking to cancel your appointment." },
+          { type: "bot", text: "📋 Enter your appointment ID below and click Track to check status:" },
         ]);
-        setStep("tracking" as BookingStep);
+        setStep("tracking_input");
       } else if (option === "Contact Us") {
         setMessages((prev) => [
           ...prev,
@@ -659,7 +678,52 @@ const Chatbot = () => {
               </div>
             )}
 
-            {/* User Details Form - Step 3 */}
+            {/* Track Appointment Input - With Button */}
+            {step === "tracking_input" && (
+              <div className="space-y-3 bg-card p-4 rounded-lg border border-border">
+                <p className="text-sm font-medium text-center">🔍 Track Your Appointment</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g., KTS-1001"
+                    value={trackingId}
+                    onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
+                    className="flex-1"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && trackingId.trim()) {
+                        handleTrackAppointment(trackingId);
+                      }
+                    }}
+                  />
+                  <Button 
+                    onClick={() => {
+                      if (trackingId.trim()) {
+                        handleTrackAppointment(trackingId);
+                      }
+                    }}
+                    disabled={!trackingId.trim()}
+                    size="sm"
+                  >
+                    Track
+                  </Button>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => {
+                    setStep("chat");
+                    setTrackingId("");
+                    setMessages((prev) => [
+                      ...prev,
+                      { type: "bot", text: "No problem! How else can I help you?" },
+                    ]);
+                  }}
+                >
+                  ← Back to Menu
+                </Button>
+              </div>
+            )}
+
             {step === "details" && (
               <div className="space-y-4 bg-card p-4 rounded-lg border border-border">
                 {/* Booking Summary */}
