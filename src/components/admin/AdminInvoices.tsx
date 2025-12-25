@@ -164,7 +164,7 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
     const { data, error } = await supabase
       .from("appointments")
       .select("id, reference_id, appointment_date, appointment_time, status, notes, user_id, service_id")
-      .in("status", ["confirmed", "completed"])
+      .eq("status", "completed")
       .order("appointment_date", { ascending: false });
 
     if (error) {
@@ -176,11 +176,29 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
     // Fetch user and service details
     const appointmentsWithDetails: Appointment[] = [];
     for (const apt of data || []) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email, phone, address")
-        .eq("user_id", apt.user_id)
-        .maybeSingle();
+      let profile = { full_name: null as string | null, email: null as string | null, phone: null as string | null, address: null as string | null };
+      
+      if (apt.user_id) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("full_name, email, phone, address")
+          .eq("user_id", apt.user_id)
+          .maybeSingle();
+        if (profileData) profile = profileData;
+      } else {
+        // Parse guest details from notes for guest bookings
+        const notes = apt.notes || "";
+        const nameMatch = notes.match(/Name=([^,|]+)/i);
+        const emailMatch = notes.match(/Email=([^,|]+)/i);
+        const phoneMatch = notes.match(/Phone=([^,|]+)/i);
+        
+        profile = {
+          full_name: nameMatch ? nameMatch[1].trim() : "Guest",
+          email: emailMatch ? emailMatch[1].trim() : null,
+          phone: phoneMatch ? phoneMatch[1].trim() : null,
+          address: null,
+        };
+      }
 
       const { data: service } = apt.service_id
         ? await supabase.from("services").select("name, price").eq("id", apt.service_id).maybeSingle()
@@ -188,7 +206,7 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
 
       appointmentsWithDetails.push({
         ...apt,
-        user: profile || { full_name: null, email: null, phone: null, address: null },
+        user: profile,
         service: service,
       });
     }
