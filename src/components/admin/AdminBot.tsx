@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Bot, MessageCircle, Calendar } from "lucide-react";
+import { Save, Bot, MessageCircle, Calendar, Clock } from "lucide-react";
 
 interface Settings {
   [key: string]: string;
@@ -135,6 +135,73 @@ const AdminBot = () => {
               />
               <Button 
                 onClick={() => updateSetting("chatbot_avatar", settings.chatbot_avatar || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Time Slot Settings */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <div className="flex items-center gap-2">
+          <Clock className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">Time Slot Settings</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">Configure appointment time slots duration and working hours</p>
+        
+        <div className="space-y-4 pt-4 border-t border-border">
+          <div>
+            <label className="block text-sm font-medium mb-2">Slot Duration (minutes)</label>
+            <p className="text-xs text-muted-foreground mb-2">Each appointment slot duration (e.g., 60 = 1 hour, 120 = 2 hours, 180 = 3 hours)</p>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min="30"
+                max="480"
+                step="30"
+                value={settings.slot_duration || "60"}
+                onChange={(e) => handleInputChange("slot_duration", e.target.value)}
+                placeholder="60"
+              />
+              <Button 
+                onClick={() => updateSetting("slot_duration", settings.slot_duration || "60")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Working Start Time</label>
+            <div className="flex gap-2">
+              <Input
+                type="time"
+                value={settings.working_start_time || "09:00"}
+                onChange={(e) => handleInputChange("working_start_time", e.target.value)}
+              />
+              <Button 
+                onClick={() => updateSetting("working_start_time", settings.working_start_time || "09:00")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Working End Time</label>
+            <div className="flex gap-2">
+              <Input
+                type="time"
+                value={settings.working_end_time || "18:00"}
+                onChange={(e) => handleInputChange("working_end_time", e.target.value)}
+              />
+              <Button 
+                onClick={() => updateSetting("working_end_time", settings.working_end_time || "18:00")}
                 disabled={saving}
               >
                 <Save className="w-4 h-4" />
