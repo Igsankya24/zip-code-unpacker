@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, XCircle, Calendar, LogOut, Home, RefreshCw } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Clock, CheckCircle, XCircle, Calendar, LogOut, Home, RefreshCw, CalendarClock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -22,6 +24,45 @@ interface Appointment {
   source?: string;
 }
 
+// Generate time slots based on settings
+const generateTimeSlots = (startTime: string, endTime: string, durationMinutes: number): string[] => {
+  const slots: string[] = [];
+  const [startHour] = startTime.split(":").map(Number);
+  const [endHour] = endTime.split(":").map(Number);
+  
+  let currentHour = startHour;
+  let currentMinute = 0;
+  
+  while (currentHour < endHour || (currentHour === endHour && currentMinute === 0)) {
+    const slotEndMinutes = currentHour * 60 + currentMinute + durationMinutes;
+    const endTimeMinutes = endHour * 60;
+    
+    if (slotEndMinutes <= endTimeMinutes) {
+      const hour12 = currentHour % 12 || 12;
+      const ampm = currentHour >= 12 ? "PM" : "AM";
+      const minuteStr = currentMinute.toString().padStart(2, "0");
+      slots.push(`${hour12.toString().padStart(2, "0")}:${minuteStr} ${ampm}`);
+    }
+    
+    currentMinute += durationMinutes;
+    while (currentMinute >= 60) {
+      currentMinute -= 60;
+      currentHour += 1;
+    }
+  }
+  
+  return slots;
+};
+
+// Convert 12hr format to 24hr for database
+const convertTo24Hr = (time12: string): string => {
+  const [time, modifier] = time12.split(" ");
+  let [hours, minutes] = time.split(":");
+  if (hours === "12") hours = modifier === "AM" ? "00" : "12";
+  else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+  return `${hours.padStart(2, "0")}:${minutes}:00`;
+};
+
 const UserDashboard = () => {
   const { user, isApproved, isLoading, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -29,6 +70,16 @@ const UserDashboard = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  // Reschedule state
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleAppointment, setRescheduleAppointment] = useState<Appointment | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>();
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleStep, setRescheduleStep] = useState<"date" | "time">("date");
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [slotSettings, setSlotSettings] = useState({ startTime: "09:00", endTime: "18:00", duration: 60 });
+  const [rescheduling, setRescheduling] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -63,6 +114,7 @@ const UserDashboard = () => {
     setLoadingData(true);
 
     await fetchProfile();
+    await fetchSlotSettings();
 
     const { data: appointmentsData, error: appointmentsError } = await supabase
       .from("appointments")
@@ -98,6 +150,85 @@ const UserDashboard = () => {
     }
 
     setLoadingData(false);
+  };
+
+  const fetchSlotSettings = async () => {
+    const { data } = await supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["working_start_time", "working_end_time", "slot_duration"]);
+    
+    if (data) {
+      const settings: Record<string, string> = {};
+      data.forEach(s => { settings[s.key] = s.value; });
+      setSlotSettings({
+        startTime: settings.working_start_time || "09:00",
+        endTime: settings.working_end_time || "18:00",
+        duration: parseInt(settings.slot_duration || "60", 10),
+      });
+    }
+  };
+
+  const fetchBookedSlots = async (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const { data } = await supabase
+      .from("appointments")
+      .select("appointment_time")
+      .eq("appointment_date", dateStr)
+      .in("status", ["pending", "confirmed"]);
+
+    if (data) {
+      const booked = data.map(apt => {
+        const time24 = apt.appointment_time;
+        const [hours, minutes] = time24.split(":");
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? "PM" : "AM";
+        const hour12 = hour % 12 || 12;
+        return `${hour12.toString().padStart(2, "0")}:${minutes} ${ampm}`;
+      });
+      setBookedSlots(booked);
+    } else {
+      setBookedSlots([]);
+    }
+  };
+
+  const openReschedule = (appointment: Appointment) => {
+    setRescheduleAppointment(appointment);
+    setRescheduleDate(undefined);
+    setRescheduleTime("");
+    setRescheduleStep("date");
+    setBookedSlots([]);
+    setRescheduleOpen(true);
+  };
+
+  const handleRescheduleDateSelect = async (date: Date | undefined) => {
+    if (!date) return;
+    setRescheduleDate(date);
+    await fetchBookedSlots(date);
+    setRescheduleStep("time");
+  };
+
+  const handleRescheduleTimeSelect = async (time: string) => {
+    if (!rescheduleAppointment || !rescheduleDate) return;
+    
+    setRescheduling(true);
+    const { error } = await supabase
+      .from("appointments")
+      .update({
+        appointment_date: format(rescheduleDate, "yyyy-MM-dd"),
+        appointment_time: convertTo24Hr(time),
+        status: "pending", // Reset to pending after reschedule
+      })
+      .eq("id", rescheduleAppointment.id);
+
+    if (error) {
+      toast.error("Failed to reschedule appointment");
+    } else {
+      toast.success("Appointment rescheduled successfully");
+      setRescheduleOpen(false);
+      fetchUserData();
+    }
+    setRescheduling(false);
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
@@ -270,16 +401,28 @@ const UserDashboard = () => {
                             </div>
                           )}
                           {appointment.status === "confirmed" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 hover:bg-red-500/10"
-                              onClick={() => handleUpdateStatus(appointment.id, "cancelled")}
-                              disabled={updatingId === appointment.id}
-                            >
-                              <XCircle className="w-4 h-4 mr-1" />
-                              Cancel
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-primary hover:bg-primary/10"
+                                onClick={() => openReschedule(appointment)}
+                                disabled={updatingId === appointment.id}
+                              >
+                                <CalendarClock className="w-4 h-4 mr-1" />
+                                Reschedule
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:bg-red-500/10"
+                                onClick={() => handleUpdateStatus(appointment.id, "cancelled")}
+                                disabled={updatingId === appointment.id}
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
                           )}
                           {(appointment.status === "cancelled" || appointment.status === "completed") && (
                             <span className="text-muted-foreground text-sm">-</span>
@@ -294,6 +437,82 @@ const UserDashboard = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="w-5 h-5 text-primary" />
+              Reschedule Appointment
+            </DialogTitle>
+          </DialogHeader>
+
+          {rescheduleAppointment && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="text-sm font-medium">{rescheduleAppointment.service_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Current: {format(new Date(rescheduleAppointment.appointment_date), "PPP")} at {rescheduleAppointment.appointment_time}
+                </p>
+              </div>
+
+              {rescheduleStep === "date" && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Select a new date:</p>
+                  <CalendarComponent
+                    mode="single"
+                    selected={rescheduleDate}
+                    onSelect={handleRescheduleDateSelect}
+                    disabled={(date) => date < new Date() || date.getDay() === 0}
+                    className="rounded-md border pointer-events-auto"
+                  />
+                </div>
+              )}
+
+              {rescheduleStep === "time" && (
+                <div className="space-y-3">
+                  <div className="bg-primary/5 p-3 rounded-lg">
+                    <p className="text-sm font-medium">{rescheduleDate ? format(rescheduleDate, "EEEE, MMMM d, yyyy") : ""}</p>
+                    <button onClick={() => setRescheduleStep("date")} className="text-xs text-primary underline">
+                      Change date
+                    </button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Select a time slot:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {generateTimeSlots(slotSettings.startTime, slotSettings.endTime, slotSettings.duration).map((time) => {
+                      const isBooked = bookedSlots.some(booked => {
+                        const normalizedBooked = booked.replace(/^0/, "");
+                        const normalizedTime = time.replace(/^0/, "");
+                        return normalizedBooked === normalizedTime || booked === time;
+                      });
+                      return (
+                        <button
+                          key={time}
+                          onClick={() => !isBooked && handleRescheduleTimeSelect(time)}
+                          disabled={isBooked || rescheduling}
+                          className={`p-3 border rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                            isBooked
+                              ? "bg-muted text-muted-foreground border-border cursor-not-allowed opacity-50"
+                              : "bg-card border-border hover:bg-primary hover:text-primary-foreground"
+                          }`}
+                        >
+                          <Clock className="w-4 h-4" />
+                          <span>{time}</span>
+                          {isBooked && <span className="text-xs">(Booked)</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {rescheduling && (
+                    <p className="text-sm text-muted-foreground text-center">Rescheduling...</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
