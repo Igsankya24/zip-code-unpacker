@@ -81,6 +81,7 @@ export type Database = {
           reference_id: string | null
           service_id: string | null
           status: string | null
+          technician_id: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -93,6 +94,7 @@ export type Database = {
           reference_id?: string | null
           service_id?: string | null
           status?: string | null
+          technician_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -105,6 +107,7 @@ export type Database = {
           reference_id?: string | null
           service_id?: string | null
           status?: string | null
+          technician_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -114,6 +117,13 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
             referencedColumns: ["id"]
           },
         ]
@@ -477,6 +487,39 @@ export type Database = {
           key?: string
           updated_at?: string | null
           value?: string
+        }
+        Relationships: []
+      }
+      technicians: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+          specialization: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+          specialization?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+          specialization?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

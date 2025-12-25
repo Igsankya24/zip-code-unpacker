@@ -209,14 +209,19 @@ const UserDashboard = () => {
   };
 
   const handleRescheduleTimeSelect = async (time: string) => {
-    if (!rescheduleAppointment || !rescheduleDate) return;
+    if (!rescheduleAppointment || !rescheduleDate || !user) return;
     
     setRescheduling(true);
+    const oldDate = rescheduleAppointment.appointment_date;
+    const oldTime = rescheduleAppointment.appointment_time;
+    const newDate = format(rescheduleDate, "yyyy-MM-dd");
+    const newTime = convertTo24Hr(time);
+
     const { error } = await supabase
       .from("appointments")
       .update({
-        appointment_date: format(rescheduleDate, "yyyy-MM-dd"),
-        appointment_time: convertTo24Hr(time),
+        appointment_date: newDate,
+        appointment_time: newTime,
         status: "pending", // Reset to pending after reschedule
       })
       .eq("id", rescheduleAppointment.id);
@@ -224,6 +229,22 @@ const UserDashboard = () => {
     if (error) {
       toast.error("Failed to reschedule appointment");
     } else {
+      // Create notification for rescheduled appointment
+      await supabase.from("notifications").insert({
+        title: "Appointment Rescheduled",
+        message: `Appointment ${rescheduleAppointment.reference_id || ""} rescheduled from ${oldDate} ${oldTime} to ${newDate} ${time}`,
+        type: "info",
+        user_id: null, // Visible to admins
+      });
+
+      // Also notify the user
+      await supabase.from("notifications").insert({
+        title: "Appointment Rescheduled",
+        message: `Your appointment has been rescheduled to ${format(rescheduleDate, "PPP")} at ${time}. It is now pending confirmation.`,
+        type: "info",
+        user_id: user.id,
+      });
+
       toast.success("Appointment rescheduled successfully");
       setRescheduleOpen(false);
       fetchUserData();

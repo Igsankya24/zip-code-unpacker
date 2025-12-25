@@ -24,7 +24,8 @@ import {
   UserCog,
   BarChart3,
   Lock,
-  FileText
+  FileText,
+  Wrench
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -41,6 +42,7 @@ import AdminUserPermissions from "@/components/admin/AdminUserPermissions";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminUserAccess from "@/components/admin/AdminUserAccess";
 import AdminInvoices from "@/components/admin/AdminInvoices";
+import AdminTechnicians from "@/components/admin/AdminTechnicians";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -50,7 +52,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices";
+type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians";
 
 interface DashboardStats {
   totalUsers: number;
@@ -413,6 +415,7 @@ const Admin = () => {
     { id: "services" as AdminTab, label: "Services", icon: Briefcase, visible: permissions.can_view_services },
     { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar, visible: permissions.can_view_appointments },
     { id: "invoices" as AdminTab, label: "Invoices", icon: FileText, visible: permissions.can_view_appointments },
+    { id: "technicians" as AdminTab, label: "Technicians", icon: Wrench, visible: permissions.can_view_appointments },
     { id: "messages" as AdminTab, label: "Messages", icon: MessageSquare, badge: stats.unreadMessages, visible: permissions.can_view_messages },
     { id: "users" as AdminTab, label: "Users", icon: Users, visible: permissions.can_view_users },
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket, visible: permissions.can_view_coupons },
@@ -538,6 +541,8 @@ const Admin = () => {
         return <AdminAppointments onNavigateToInvoice={handleNavigateToInvoice} />;
       case "invoices":
         return <AdminInvoices preSelectedAppointmentId={selectedAppointmentForInvoice} onClearSelection={() => setSelectedAppointmentForInvoice(null)} />;
+      case "technicians":
+        return <AdminTechnicians />;
       case "users":
         return <AdminUsers />;
       case "coupons":
