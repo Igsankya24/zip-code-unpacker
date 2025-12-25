@@ -476,13 +476,22 @@ const Chatbot = () => {
     if (currentUser) {
       userId = currentUser.id;
     } else {
+      // Get next serial number by counting existing guest bookings
+      const { count } = await supabase
+        .from("contact_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("source", "chatbot_booking");
+      
+      const serialNumber = String((count || 0) + 1).padStart(4, "0");
+      const tempRef = `KTS-${serialNumber}-${format(new Date(), "HHmm")}`;
+      
       // For guest bookings, we need to create a guest user or use anonymous booking
       // Since RLS requires user_id, save as contact message for manual processing
       const { error: messageError } = await supabase.from("contact_messages").insert({
         name: userDetails.name,
         email: userDetails.email,
         phone: userDetails.phone,
-        subject: `📅 Guest Appointment Request: ${service?.name}${discountText}`,
+        subject: `📅 Guest Appointment Request: ${service?.name}${discountText} | Ref: ${tempRef}`,
         message: `Guest appointment request (user not logged in):\n\n📋 Service: ${service?.name}\n📅 Date: ${selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}\n⏰ Time: ${selectedTime}\n👤 Name: ${userDetails.name}\n📧 Email: ${userDetails.email}\n📱 Phone: ${userDetails.phone}${appliedCoupon ? `\n🎟️ Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? `\n💰 Price: ₹${finalPrice.toFixed(0)}` : ""}\n\n⚠️ Create appointment manually from admin panel.`,
         source: "chatbot_booking",
       });
@@ -492,7 +501,7 @@ const Chatbot = () => {
         return;
       }
 
-      const tempRef = `KTS-${format(new Date(), "yyMMdd")}-${format(new Date(), "HHmm")}`;
+      
       
       setMessages((prev) => [
         ...prev,
