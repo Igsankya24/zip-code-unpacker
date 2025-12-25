@@ -58,6 +58,7 @@ interface DashboardStats {
   totalAppointments: number;
   pendingAppointments: number;
   totalCoupons: number;
+  totalMessages: number;
   unreadMessages: number;
   pendingDeletionRequests: number;
 }
@@ -82,6 +83,7 @@ const Admin = () => {
     totalAppointments: 0,
     pendingAppointments: 0,
     totalCoupons: 0,
+    totalMessages: 0,
     unreadMessages: 0,
     pendingDeletionRequests: 0,
   });
@@ -139,6 +141,7 @@ const Admin = () => {
       totalAppointments: appointmentsRes.data?.length || 0,
       pendingAppointments: appointmentsRes.data?.filter(a => a.status === "pending").length || 0,
       totalCoupons: couponsRes.count || 0,
+      totalMessages: messagesRes.data?.length || 0,
       unreadMessages: messagesRes.data?.filter(m => !m.is_read).length || 0,
       pendingDeletionRequests: deletionRes.data?.length || 0,
     });
@@ -337,8 +340,10 @@ const Admin = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-muted-foreground text-sm mb-2">Messages</h3>
-                      <p className="text-3xl font-bold text-foreground">{stats.unreadMessages}</p>
-                      <p className="text-xs text-muted-foreground">unread</p>
+                      <p className="text-3xl font-bold text-foreground">{stats.totalMessages}</p>
+                      {stats.unreadMessages > 0 && (
+                        <p className="text-xs text-yellow-500">{stats.unreadMessages} unread</p>
+                      )}
                     </div>
                     <MessageSquare className="w-10 h-10 text-primary/50" />
                   </div>
