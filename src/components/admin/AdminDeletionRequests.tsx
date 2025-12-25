@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Check, X, Clock, Trash2, Calendar } from "lucide-react";
+import { Check, X, Clock, Trash2, Calendar, Briefcase, History } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DeletionRequest {
   id: string;
@@ -14,6 +15,7 @@ interface DeletionRequest {
   reason: string | null;
   status: string;
   created_at: string;
+  reviewed_at: string | null;
   requester_name?: string;
   target_info?: string;
 }
@@ -69,10 +71,29 @@ const AdminDeletionRequests = () => {
       });
     }
 
+    // Get target info for services
+    const serviceIds = data?.filter(r => r.request_type === "service").map(r => r.target_id) || [];
+    let servicesMap: Record<string, string> = {};
+    
+    if (serviceIds.length > 0) {
+      const { data: services } = await supabase
+        .from("services")
+        .select("id, name")
+        .in("id", serviceIds);
+      
+      services?.forEach(s => {
+        servicesMap[s.id] = s.name;
+      });
+    }
+
     const enrichedRequests = data?.map(r => ({
       ...r,
       requester_name: profilesMap[r.requested_by],
-      target_info: r.request_type === "appointment" ? appointmentsMap[r.target_id] : r.target_id.substring(0, 8),
+      target_info: r.request_type === "appointment" 
+        ? (appointmentsMap[r.target_id] || "Deleted")
+        : r.request_type === "service"
+          ? (servicesMap[r.target_id] || "Deleted")
+          : r.target_id.substring(0, 8),
     })) || [];
 
     setRequests(enrichedRequests);
@@ -85,14 +106,24 @@ const AdminDeletionRequests = () => {
       return;
     }
 
-    // Delete the target
+    // Delete the target based on type
     if (request.request_type === "appointment") {
       const { error: deleteError } = await supabase
         .from("appointments")
         .delete()
         .eq("id", request.target_id);
 
-      if (deleteError) {
+      if (deleteError && !deleteError.message.includes("0 rows")) {
+        toast({ title: "Error", description: deleteError.message, variant: "destructive" });
+        return;
+      }
+    } else if (request.request_type === "service") {
+      const { error: deleteError } = await supabase
+        .from("services")
+        .delete()
+        .eq("id", request.target_id);
+
+      if (deleteError && !deleteError.message.includes("0 rows")) {
         toast({ title: "Error", description: deleteError.message, variant: "destructive" });
         return;
       }
@@ -173,9 +204,103 @@ const AdminDeletionRequests = () => {
     }
   };
 
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "appointment": return <Calendar className="w-4 h-4 text-primary" />;
+      case "service": return <Briefcase className="w-4 h-4 text-purple-500" />;
+      default: return <Trash2 className="w-4 h-4" />;
+    }
+  };
+
+  const pendingRequests = requests.filter(r => r.status === "pending");
+  const historyRequests = requests.filter(r => r.status !== "pending");
+
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading...</div>;
   }
+
+  const renderRequestsTable = (items: DeletionRequest[], showActions: boolean = false) => (
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="p-4 text-left text-sm font-medium">Type</th>
+              <th className="p-4 text-left text-sm font-medium">Target</th>
+              <th className="p-4 text-left text-sm font-medium">Requested By</th>
+              <th className="p-4 text-left text-sm font-medium">Reason</th>
+              <th className="p-4 text-left text-sm font-medium">Date</th>
+              <th className="p-4 text-left text-sm font-medium">Status</th>
+              {showActions && isSuperAdmin && <th className="p-4 text-left text-sm font-medium">Actions</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((request) => (
+              <tr key={request.id} className="border-t border-border hover:bg-muted/30">
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    {getTypeIcon(request.request_type)}
+                    <span className="capitalize">{request.request_type}</span>
+                  </div>
+                </td>
+                <td className="p-4">
+                  <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                    {request.target_info}
+                  </span>
+                </td>
+                <td className="p-4 text-muted-foreground">
+                  {request.requester_name}
+                </td>
+                <td className="p-4 text-muted-foreground max-w-xs truncate">
+                  {request.reason || "-"}
+                </td>
+                <td className="p-4 text-muted-foreground text-sm">
+                  {format(new Date(request.created_at), "MMM d, yyyy HH:mm")}
+                </td>
+                <td className="p-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${getStatusColor(request.status)}`}>
+                    {getStatusIcon(request.status)}
+                    {request.status}
+                  </span>
+                </td>
+                {showActions && isSuperAdmin && (
+                  <td className="p-4">
+                    {request.status === "pending" && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleApprove(request)}
+                          className="text-green-500 hover:text-green-600"
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleReject(request)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+            {items.length === 0 && (
+              <tr>
+                <td colSpan={showActions && isSuperAdmin ? 7 : 6} className="p-8 text-center text-muted-foreground">
+                  No requests found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -185,89 +310,32 @@ const AdminDeletionRequests = () => {
       </div>
 
       <p className="text-muted-foreground">
-        Review and approve or reject deletion requests from admins.
+        Review and approve or reject deletion requests from admins. History shows all processed requests including deleted items.
       </p>
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-4 text-left text-sm font-medium">Type</th>
-                <th className="p-4 text-left text-sm font-medium">Target</th>
-                <th className="p-4 text-left text-sm font-medium">Requested By</th>
-                <th className="p-4 text-left text-sm font-medium">Reason</th>
-                <th className="p-4 text-left text-sm font-medium">Date</th>
-                <th className="p-4 text-left text-sm font-medium">Status</th>
-                {isSuperAdmin && <th className="p-4 text-left text-sm font-medium">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((request) => (
-                <tr key={request.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      {request.request_type === "appointment" && <Calendar className="w-4 h-4 text-primary" />}
-                      <span className="capitalize">{request.request_type}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                      {request.target_info}
-                    </span>
-                  </td>
-                  <td className="p-4 text-muted-foreground">
-                    {request.requester_name}
-                  </td>
-                  <td className="p-4 text-muted-foreground max-w-xs truncate">
-                    {request.reason || "-"}
-                  </td>
-                  <td className="p-4 text-muted-foreground text-sm">
-                    {format(new Date(request.created_at), "MMM d, yyyy HH:mm")}
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${getStatusColor(request.status)}`}>
-                      {getStatusIcon(request.status)}
-                      {request.status}
-                    </span>
-                  </td>
-                  {isSuperAdmin && (
-                    <td className="p-4">
-                      {request.status === "pending" && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleApprove(request)}
-                            className="text-green-500 hover:text-green-600"
-                          >
-                            <Check className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleReject(request)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {requests.length === 0 && (
-                <tr>
-                  <td colSpan={isSuperAdmin ? 7 : 6} className="p-8 text-center text-muted-foreground">
-                    No deletion requests found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList>
+          <TabsTrigger value="pending" className="flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Pending ({pendingRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="w-4 h-4" />
+            History ({historyRequests.length})
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="pending" className="mt-4">
+          {renderRequestsTable(pendingRequests, true)}
+        </TabsContent>
+        
+        <TabsContent value="history" className="mt-4">
+          <p className="text-sm text-muted-foreground mb-4">
+            Showing all approved and rejected deletion requests. Approved items have been permanently deleted.
+          </p>
+          {renderRequestsTable(historyRequests, false)}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,30 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { signIn, signUp, signOut } = useAuth();
+  const { signIn, signUp, signOut, user, isAdmin } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const hasRedirected = useRef(false);
+
+  // Redirect logged-in users to control panel
+  useEffect(() => {
+    if (user && !hasRedirected.current) {
+      hasRedirected.current = true;
+      // Check roles and redirect
+      const checkAndRedirect = async () => {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+        
+        const userRoles = roles?.map(r => r.role) || [];
+        const isAdminUser = userRoles.includes("admin") || userRoles.includes("super_admin");
+        
+        navigate(isAdminUser ? "/admin" : "/");
+      };
+      checkAndRedirect();
+    }
+  }, [user, navigate]);
 
   const checkFrozenStatus = async (userId: string) => {
     const { data, error } = await supabase
@@ -77,7 +98,7 @@ const Auth = () => {
               description: "You have successfully logged in.",
             });
             
-            // Redirect admins to admin panel, regular users to home
+            // Redirect admins to control panel, regular users to home
             navigate(isAdminUser ? "/admin" : "/");
           }
         }

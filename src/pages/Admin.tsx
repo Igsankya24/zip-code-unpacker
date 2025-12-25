@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
@@ -97,7 +98,7 @@ const Admin = () => {
 
   useEffect(() => {
     if (!isLoading && user && !isAdmin) {
-      navigate("/");
+      navigate("/admin");
     }
   }, [isAdmin, isLoading, user, navigate]);
 
@@ -225,10 +226,17 @@ const Admin = () => {
     return null;
   }
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await signOut();
     navigate("/");
-  };
+  }, [signOut, navigate]);
+
+  // 15 minute idle timeout for auto-logout
+  useIdleTimeout({
+    timeout: 15 * 60 * 1000, // 15 minutes
+    onTimeout: handleSignOut,
+    enabled: isAdmin,
+  });
 
   // Filter tabs based on permissions
   const allTabs = [
@@ -405,7 +413,7 @@ const Admin = () => {
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-border">
-            <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
+            <h1 className="text-xl font-bold text-foreground">Control Panel</h1>
             <p className="text-sm text-muted-foreground mt-1">Krishna Tech Solutions</p>
           </div>
 
