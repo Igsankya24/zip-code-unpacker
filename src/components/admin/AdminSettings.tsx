@@ -144,6 +144,39 @@ const AdminSettings = () => {
         </div>
       </div>
 
+      {/* Session & Security Settings */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Session & Security</h3>
+        
+        <div>
+          <label className="block text-sm font-medium mb-2">Auto Logout (Idle Timeout)</label>
+          <p className="text-sm text-muted-foreground mb-3">
+            Automatically log out users after being idle for this duration. Applies to all users (User, Admin, Super Admin).
+          </p>
+          <div className="flex gap-2 items-center">
+            <Select
+              value={settings.idle_timeout_minutes || "15"}
+              onValueChange={(value) => updateSetting("idle_timeout_minutes", value)}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select timeout" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 minutes</SelectItem>
+                <SelectItem value="10">10 minutes</SelectItem>
+                <SelectItem value="15">15 minutes</SelectItem>
+                <SelectItem value="30">30 minutes</SelectItem>
+                <SelectItem value="60">1 hour</SelectItem>
+                <SelectItem value="120">2 hours</SelectItem>
+                <SelectItem value="480">8 hours</SelectItem>
+                <SelectItem value="1440">24 hours</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">of inactivity</span>
+          </div>
+        </div>
+      </div>
+
       {/* Maintenance Mode */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Site Status</h3>

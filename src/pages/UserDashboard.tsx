@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +86,34 @@ const UserDashboard = () => {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [slotSettings, setSlotSettings] = useState({ startTime: "09:00", endTime: "18:00", duration: 60 });
   const [rescheduling, setRescheduling] = useState(false);
+
+  // Idle timeout for auto-logout
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState<number>(15);
+  
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    navigate("/");
+  }, [signOut, navigate]);
+
+  useEffect(() => {
+    const fetchIdleTimeout = async () => {
+      const { data } = await supabase
+        .from("site_settings")
+        .select("value")
+        .eq("key", "idle_timeout_minutes")
+        .single();
+      if (data?.value) {
+        setIdleTimeoutMinutes(parseInt(data.value) || 15);
+      }
+    };
+    fetchIdleTimeout();
+  }, []);
+
+  useIdleTimeout({
+    timeout: idleTimeoutMinutes * 60 * 1000,
+    onTimeout: handleSignOut,
+    enabled: !!user,
+  });
 
   // Check if user has access to a feature, show popup if not
   const checkAccess = (feature: keyof typeof userAccess, featureName: string): boolean => {
