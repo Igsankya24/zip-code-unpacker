@@ -244,26 +244,59 @@ const Admin = () => {
   }, [isAdmin, user?.id, toast]);
 
   const fetchStats = async () => {
-    const [usersRes, servicesRes, appointmentsRes, couponsRes, messagesRes, deletionRes] = await Promise.all([
+    const [
+      usersRes,
+      servicesRes,
+      appointmentsTotalRes,
+      appointmentsPendingRes,
+      couponsRes,
+      messagesTotalRes,
+      messagesUnreadRes,
+      deletionRes,
+    ] = await Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
       supabase.from("services").select("id, is_visible"),
-      supabase.from("appointments").select("id, status"),
+      supabase.from("appointments").select("id", { count: "exact", head: true }),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("status", "pending"),
       supabase.from("coupons").select("id", { count: "exact", head: true }),
       // Exclude chatbot booking requests (those should be appointments, not messages)
-      supabase.from("contact_messages").select("id, is_read").neq("source", "chatbot_booking"),
-      isSuperAdmin ? supabase.from("deletion_requests").select("id, status").eq("status", "pending") : { data: [] },
+      supabase.from("contact_messages").select("id", { count: "exact", head: true }).neq("source", "chatbot_booking"),
+      supabase.from("contact_messages").select("id", { count: "exact", head: true }).neq("source", "chatbot_booking").eq("is_read", false),
+      isSuperAdmin
+        ? supabase.from("deletion_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+        : ({ data: [], count: 0 } as any),
     ]);
+
+    const errors = [
+      usersRes.error,
+      servicesRes.error,
+      appointmentsTotalRes.error,
+      appointmentsPendingRes.error,
+      couponsRes.error,
+      messagesTotalRes.error,
+      messagesUnreadRes.error,
+      (deletionRes as any).error,
+    ].filter(Boolean);
+
+    if (errors.length) {
+      console.error("Error fetching dashboard stats:", errors);
+      toast({
+        title: "Stats error",
+        description: "Some dashboard stats could not be loaded. Please refresh.",
+        variant: "destructive",
+      });
+    }
 
     setStats({
       totalUsers: usersRes.count || 0,
       totalServices: servicesRes.data?.length || 0,
-      activeServices: servicesRes.data?.filter(s => s.is_visible).length || 0,
-      totalAppointments: appointmentsRes.data?.length || 0,
-      pendingAppointments: appointmentsRes.data?.filter(a => a.status === "pending").length || 0,
+      activeServices: servicesRes.data?.filter((s) => s.is_visible).length || 0,
+      totalAppointments: appointmentsTotalRes.count || 0,
+      pendingAppointments: appointmentsPendingRes.count || 0,
       totalCoupons: couponsRes.count || 0,
-      totalMessages: messagesRes.data?.length || 0,
-      unreadMessages: messagesRes.data?.filter(m => !m.is_read).length || 0,
-      pendingDeletionRequests: deletionRes.data?.length || 0,
+      totalMessages: messagesTotalRes.count || 0,
+      unreadMessages: messagesUnreadRes.count || 0,
+      pendingDeletionRequests: (deletionRes as any).count || 0,
     });
   };
 
