@@ -217,6 +217,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Check if current session is still valid (single-session enforcement)
+  const checkSessionValidity = async (userId: string) => {
+    const storedSessionId = localStorage.getItem("active_session_id");
+    if (!storedSessionId) return true; // No session stored, allow
+
+    const { data: sessionData } = await supabase
+      .from("sessions")
+      .select("is_active")
+      .eq("id", storedSessionId)
+      .single();
+
+    // If session is no longer active, user was logged out from another device
+    if (sessionData && !sessionData.is_active) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // Force logout when session is invalidated
+  const forceLogout = async () => {
+    localStorage.removeItem("active_session_id");
+    await supabase.auth.signOut();
+    setIsAdmin(false);
+    setIsSuperAdmin(false);
+    setIsApproved(false);
+    setPermissions(defaultPermissions);
+    setUserAccess(defaultUserAccess);
+    navigate("/auth");
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -225,6 +256,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (session?.user) {
           setTimeout(async () => {
+            // Check session validity on auth state change
+            const isValid = await checkSessionValidity(session.user.id);
+            if (!isValid) {
+              console.log("Session invalidated - logged in from another device");
+              forceLogout();
+              return;
+            }
+
             const { isAdmin, isSuperAdmin } = await checkAdminRole(session.user.id);
             setIsAdmin(isAdmin);
             setIsSuperAdmin(isSuperAdmin);
@@ -253,6 +292,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
+        // Check session validity on initial load
+        const isValid = await checkSessionValidity(session.user.id);
+        if (!isValid) {
+          console.log("Session invalidated - logged in from another device");
+          forceLogout();
+          return;
+        }
+
         const { isAdmin, isSuperAdmin } = await checkAdminRole(session.user.id);
         setIsAdmin(isAdmin);
         setIsSuperAdmin(isSuperAdmin);
@@ -267,7 +314,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Periodic session validity check (every 30 seconds)
+    const intervalId = setInterval(async () => {
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      if (currentUser) {
+        const isValid = await checkSessionValidity(currentUser.id);
+        if (!isValid) {
+          console.log("Session invalidated - logged in from another device");
+          forceLogout();
+        }
+      }
+    }, 30000);
+
+    // Also check on window focus (user switches back to tab)
+    const handleFocus = async () => {
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      if (currentUser) {
+        const isValid = await checkSessionValidity(currentUser.id);
+        if (!isValid) {
+          console.log("Session invalidated - logged in from another device");
+          forceLogout();
+        }
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
@@ -294,10 +370,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (!error && data.user) {
       try {
-        await supabase.from("sessions").insert({
-          user_id: data.user.id,
-          user_agent: navigator.userAgent,
-        });
+        // Single-session enforcement: Deactivate ALL previous sessions for this user
+        await supabase
+          .from("sessions")
+          .update({ is_active: false, logout_at: new Date().toISOString() })
+          .eq("user_id", data.user.id)
+          .eq("is_active", true);
+
+        // Create a new session and store its ID locally
+        const { data: newSession } = await supabase
+          .from("sessions")
+          .insert({
+            user_id: data.user.id,
+            user_agent: navigator.userAgent,
+          })
+          .select("id")
+          .single();
+
+        if (newSession?.id) {
+          localStorage.setItem("active_session_id", newSession.id);
+        }
       } catch (sessionError) {
         console.error("Error tracking session:", sessionError);
       }
