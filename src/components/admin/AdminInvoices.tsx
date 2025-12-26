@@ -21,9 +21,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Download, Printer, Plus, Trash2, Search, Save, History, Eye } from "lucide-react";
+import { FileText, Download, Printer, Plus, Trash2, Search, Save, History, Eye, Palette } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Appointment {
   id: string;
@@ -80,20 +97,25 @@ interface SavedInvoice {
   created_at: string;
 }
 
+type InvoiceTemplate = "modern" | "classic" | "minimal";
+
 interface AdminInvoicesProps {
   preSelectedAppointmentId?: string | null;
   onClearSelection?: () => void;
+  isSuperAdmin?: boolean;
 }
 
-const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvoicesProps) => {
+const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection, isSuperAdmin = false }: AdminInvoicesProps) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [savedInvoices, setSavedInvoices] = useState<SavedInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAppointment, setSelectedAppointment] = useState<string>("");
   const [showInvoice, setShowInvoice] = useState(false);
   const [activeTab, setActiveTab] = useState<"create" | "history">("create");
+  const [selectedTemplate, setSelectedTemplate] = useState<InvoiceTemplate>("modern");
   const [companyInfo, setCompanyInfo] = useState({
     name: "Krishna Tech Solutions",
     address: "Main Road, Karnataka",
@@ -369,6 +391,25 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
     fetchSavedInvoices();
   };
 
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!isSuperAdmin) {
+      toast({ title: "Access Denied", description: "Only Super Admins can delete invoices", variant: "destructive" });
+      return;
+    }
+
+    setDeleting(invoiceId);
+    const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
+    setDeleting(null);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete invoice", variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Success", description: "Invoice deleted successfully!" });
+    fetchSavedInvoices();
+  };
+
   const addItem = () => {
     setInvoice({
       ...invoice,
@@ -397,6 +438,101 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
     setInvoice({ ...invoice, items, subtotal, taxAmount, total });
   };
 
+  const getTemplateStyles = (template: InvoiceTemplate) => {
+    switch (template) {
+      case "classic":
+        return `
+          * { box-sizing: border-box; }
+          body { font-family: 'Georgia', serif; padding: 0; margin: 0; color: #333; background: #f0f4f8; }
+          .invoice-wrapper { max-width: 800px; margin: 20px auto; background: white; border: 1px solid #1e40af; border-radius: 8px; overflow: hidden; }
+          .invoice-header { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .company-info h1 { margin: 0 0 8px; font-size: 26px; font-weight: 700; }
+          .company-info p { margin: 2px 0; font-size: 13px; opacity: 0.95; }
+          .invoice-badge { background: white; color: #1e40af; padding: 20px 25px; text-align: right; border-radius: 6px; }
+          .invoice-badge h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+          .invoice-badge .invoice-number { font-size: 13px; font-weight: 600; margin-top: 5px; color: #64748b; }
+          .invoice-badge .dates { margin-top: 10px; font-size: 11px; color: #94a3b8; }
+          .invoice-body { padding: 30px; }
+          .bill-to-section { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+          .bill-to h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #1e40af; margin: 0 0 10px; font-weight: 600; }
+          .bill-to .name { font-size: 17px; font-weight: 600; margin-bottom: 5px; color: #1e293b; }
+          .bill-to p { margin: 2px 0; font-size: 13px; color: #64748b; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+          .items-table th { background: #eff6ff; padding: 12px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e40af; font-weight: 600; border-bottom: 2px solid #1e40af; }
+          .items-table th:last-child, .items-table td:last-child { text-align: right; }
+          .items-table td { padding: 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+          .totals-section { display: flex; justify-content: flex-end; }
+          .totals-box { width: 260px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #e2e8f0; }
+          .totals-row.total { border-top: 2px solid #1e40af; border-bottom: none; padding-top: 12px; margin-top: 5px; font-size: 18px; font-weight: 700; color: #1e40af; }
+          .footer-section { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+          .footer-box h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #1e40af; margin: 0 0 8px; font-weight: 600; }
+          .footer-box p { font-size: 11px; color: #64748b; margin: 0; line-height: 1.5; white-space: pre-line; }
+          .thank-you { text-align: center; padding: 20px; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); font-size: 13px; font-weight: 600; color: white; }
+        `;
+      case "minimal":
+        return `
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 0; margin: 0; color: #374151; background: #fafafa; }
+          .invoice-wrapper { max-width: 800px; margin: 20px auto; background: white; border: 1px solid #e5e7eb; border-radius: 4px; }
+          .invoice-header { padding: 40px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e5e7eb; }
+          .company-info h1 { margin: 0 0 12px; font-size: 24px; font-weight: 500; color: #111827; }
+          .company-info p { margin: 3px 0; font-size: 12px; color: #6b7280; }
+          .invoice-badge { text-align: right; }
+          .invoice-badge h2 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: 2px; color: #9ca3af; text-transform: uppercase; }
+          .invoice-badge .invoice-number { font-size: 20px; font-weight: 600; margin-top: 8px; color: #111827; }
+          .invoice-badge .dates { margin-top: 15px; font-size: 12px; color: #6b7280; }
+          .invoice-body { padding: 40px; }
+          .bill-to-section { margin-bottom: 35px; }
+          .bill-to h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #9ca3af; margin: 0 0 12px; font-weight: 500; }
+          .bill-to .name { font-size: 16px; font-weight: 500; margin-bottom: 6px; color: #111827; }
+          .bill-to p { margin: 2px 0; font-size: 13px; color: #6b7280; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 35px; }
+          .items-table th { padding: 12px 0; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af; font-weight: 500; border-bottom: 1px solid #e5e7eb; }
+          .items-table th:last-child, .items-table td:last-child { text-align: right; }
+          .items-table td { padding: 16px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; }
+          .totals-section { display: flex; justify-content: flex-end; }
+          .totals-box { width: 240px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #6b7280; }
+          .totals-row.total { border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 8px; font-size: 18px; font-weight: 600; color: #111827; }
+          .footer-section { margin-top: 40px; padding-top: 25px; border-top: 1px solid #e5e7eb; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+          .footer-box h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af; margin: 0 0 10px; font-weight: 500; }
+          .footer-box p { font-size: 12px; color: #6b7280; margin: 0; line-height: 1.6; white-space: pre-line; }
+          .thank-you { text-align: center; padding: 25px; border-top: 1px solid #e5e7eb; font-size: 13px; font-weight: 500; color: #6b7280; }
+        `;
+      default: // modern
+        return `
+          * { box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 0; margin: 0; color: #1a1a1a; background: #f5f5f5; }
+          .invoice-wrapper { max-width: 800px; margin: 20px auto; background: white; border: 3px solid #1a1a1a; border-radius: 0; }
+          .invoice-header { background: linear-gradient(135deg, #1a1a1a 0%, #333 100%); color: white; padding: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .company-info h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+          .company-info p { margin: 2px 0; font-size: 13px; opacity: 0.9; }
+          .invoice-badge { background: white; color: #1a1a1a; padding: 20px 25px; text-align: right; }
+          .invoice-badge h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2px; }
+          .invoice-badge .invoice-number { font-size: 14px; font-weight: 600; margin-top: 5px; color: #666; }
+          .invoice-badge .dates { margin-top: 12px; font-size: 12px; color: #888; }
+          .invoice-body { padding: 30px; }
+          .bill-to-section { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 25px; border-bottom: 2px solid #e5e5e5; }
+          .bill-to h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 10px; font-weight: 600; }
+          .bill-to .name { font-size: 18px; font-weight: 600; margin-bottom: 5px; }
+          .bill-to p { margin: 2px 0; font-size: 13px; color: #555; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          .items-table th { background: #f8f8f8; padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; font-weight: 600; border-top: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; }
+          .items-table th:last-child, .items-table td:last-child { text-align: right; }
+          .items-table td { padding: 16px; border-bottom: 1px solid #eee; font-size: 14px; }
+          .totals-section { display: flex; justify-content: flex-end; }
+          .totals-box { width: 280px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #eee; }
+          .totals-row.total { border-top: 2px solid #1a1a1a; border-bottom: none; padding-top: 15px; margin-top: 5px; font-size: 20px; font-weight: 700; }
+          .footer-section { margin-top: 40px; padding-top: 25px; border-top: 2px solid #e5e5e5; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+          .footer-box h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 8px; font-weight: 600; }
+          .footer-box p { font-size: 12px; color: #555; margin: 0; line-height: 1.6; white-space: pre-line; }
+          .thank-you { text-align: center; padding: 25px; background: #f8f8f8; border-top: 2px solid #1a1a1a; font-size: 14px; font-weight: 600; color: #333; }
+        `;
+    }
+  };
+
   const handlePrint = () => {
     const printContent = invoiceRef.current;
     if (!printContent) return;
@@ -409,35 +545,7 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
       <html>
         <head>
           <title>Invoice ${invoice.invoiceNumber}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 0; margin: 0; color: #1a1a1a; background: #f5f5f5; }
-            .invoice-wrapper { max-width: 800px; margin: 20px auto; background: white; border: 3px solid #1a1a1a; border-radius: 0; }
-            .invoice-header { background: linear-gradient(135deg, #1a1a1a 0%, #333 100%); color: white; padding: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
-            .company-info h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
-            .company-info p { margin: 2px 0; font-size: 13px; opacity: 0.9; }
-            .invoice-badge { background: white; color: #1a1a1a; padding: 20px 25px; text-align: right; }
-            .invoice-badge h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2px; }
-            .invoice-badge .invoice-number { font-size: 14px; font-weight: 600; margin-top: 5px; color: #666; }
-            .invoice-badge .dates { margin-top: 12px; font-size: 12px; color: #888; }
-            .invoice-body { padding: 30px; }
-            .bill-to-section { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 25px; border-bottom: 2px solid #e5e5e5; }
-            .bill-to h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 10px; font-weight: 600; }
-            .bill-to .name { font-size: 18px; font-weight: 600; margin-bottom: 5px; }
-            .bill-to p { margin: 2px 0; font-size: 13px; color: #555; }
-            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            .items-table th { background: #f8f8f8; padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; font-weight: 600; border-top: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; }
-            .items-table th:last-child, .items-table td:last-child { text-align: right; }
-            .items-table td { padding: 16px; border-bottom: 1px solid #eee; font-size: 14px; }
-            .totals-section { display: flex; justify-content: flex-end; }
-            .totals-box { width: 280px; }
-            .totals-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #eee; }
-            .totals-row.total { border-top: 2px solid #1a1a1a; border-bottom: none; padding-top: 15px; margin-top: 5px; font-size: 20px; font-weight: 700; }
-            .footer-section { margin-top: 40px; padding-top: 25px; border-top: 2px solid #e5e5e5; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-            .footer-box h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 8px; font-weight: 600; }
-            .footer-box p { font-size: 12px; color: #555; margin: 0; line-height: 1.6; white-space: pre-line; }
-            .thank-you { text-align: center; padding: 25px; background: #f8f8f8; border-top: 2px solid #1a1a1a; font-size: 14px; font-weight: 600; color: #333; }
-          </style>
+          <style>${getTemplateStyles(selectedTemplate)}</style>
         </head>
         <body>
           <div class="invoice-wrapper">
@@ -538,7 +646,26 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
           <h2 className="text-2xl font-bold text-foreground">Invoice Generator</h2>
           <p className="text-muted-foreground">Create and manage invoices for appointments</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Palette className="w-4 h-4 mr-2" />
+                Template: {selectedTemplate.charAt(0).toUpperCase() + selectedTemplate.slice(1)}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => setSelectedTemplate("modern")}>
+                Modern (Dark Header)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedTemplate("classic")}>
+                Classic (Blue Theme)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedTemplate("minimal")}>
+                Minimal (Clean)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant={activeTab === "create" ? "default" : "outline"}
             onClick={() => setActiveTab("create")}
@@ -576,6 +703,7 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
                     <TableHead>Total</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
+                    {isSuperAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -590,6 +718,39 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
                         </Badge>
                       </TableCell>
                       <TableCell>{format(new Date(inv.created_at), "PPP")}</TableCell>
+                      {isSuperAdmin && (
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="text-destructive hover:text-destructive"
+                                disabled={deleting === inv.id}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete invoice {inv.invoice_number}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => handleDeleteInvoice(inv.id)}
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -775,20 +936,40 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
               </div>
             </CardHeader>
             <CardContent>
-              <div ref={invoiceRef} className="bg-white text-gray-900 rounded-lg overflow-hidden border-[3px] border-gray-900">
-                {/* Modern Header */}
-                <div className="bg-gradient-to-r from-gray-900 to-gray-700 text-white p-6 flex justify-between items-start">
+              <div ref={invoiceRef} className={`bg-white text-gray-900 rounded-lg overflow-hidden ${
+                selectedTemplate === "modern" ? "border-[3px] border-gray-900" : 
+                selectedTemplate === "classic" ? "border border-blue-600 rounded-lg" : 
+                "border border-gray-200 rounded"
+              }`}>
+                {/* Template-Aware Header */}
+                <div className={`p-6 flex justify-between items-start ${
+                  selectedTemplate === "modern" ? "bg-gradient-to-r from-gray-900 to-gray-700 text-white" :
+                  selectedTemplate === "classic" ? "bg-gradient-to-r from-blue-700 to-blue-500 text-white" :
+                  "border-b border-gray-200 bg-white"
+                }`}>
                   <div className="company-info">
-                    <h1 className="text-2xl font-bold tracking-tight">{companyInfo.name}</h1>
-                    <p className="text-sm opacity-90 mt-1">{companyInfo.address}</p>
-                    <p className="text-sm opacity-90">{companyInfo.email}</p>
-                    <p className="text-sm opacity-90">{companyInfo.phone}</p>
-                    {companyInfo.gst && <p className="text-sm opacity-90">GST: {companyInfo.gst}</p>}
+                    <h1 className={`font-bold tracking-tight ${
+                      selectedTemplate === "minimal" ? "text-xl text-gray-900" : "text-2xl"
+                    }`}>{companyInfo.name}</h1>
+                    <p className={`text-sm mt-1 ${selectedTemplate === "minimal" ? "text-gray-500" : "opacity-90"}`}>{companyInfo.address}</p>
+                    <p className={`text-sm ${selectedTemplate === "minimal" ? "text-gray-500" : "opacity-90"}`}>{companyInfo.email}</p>
+                    <p className={`text-sm ${selectedTemplate === "minimal" ? "text-gray-500" : "opacity-90"}`}>{companyInfo.phone}</p>
+                    {companyInfo.gst && <p className={`text-sm ${selectedTemplate === "minimal" ? "text-gray-500" : "opacity-90"}`}>GST: {companyInfo.gst}</p>}
                   </div>
-                  <div className="bg-white text-gray-900 px-5 py-4 text-right rounded-sm">
-                    <h2 className="text-xl font-extrabold tracking-widest">INVOICE</h2>
-                    <p className="text-sm font-semibold text-gray-600 mt-1">#{invoice.invoiceNumber}</p>
-                    <div className="mt-3 text-xs text-gray-500">
+                  <div className={`px-5 py-4 text-right ${
+                    selectedTemplate === "modern" ? "bg-white text-gray-900 rounded-sm" :
+                    selectedTemplate === "classic" ? "bg-white text-blue-700 rounded-md" :
+                    ""
+                  }`}>
+                    <h2 className={`font-extrabold tracking-widest ${
+                      selectedTemplate === "minimal" ? "text-sm text-gray-400 uppercase" : "text-xl"
+                    }`}>INVOICE</h2>
+                    <p className={`font-semibold mt-1 ${
+                      selectedTemplate === "minimal" ? "text-lg text-gray-900" : "text-sm text-gray-600"
+                    }`}>#{invoice.invoiceNumber}</p>
+                    <div className={`mt-3 text-xs ${
+                      selectedTemplate === "minimal" ? "text-gray-500" : "text-gray-500"
+                    }`}>
                       <p>Date: {format(new Date(invoice.invoiceDate), "PPP")}</p>
                       <p>Due: {format(new Date(invoice.dueDate), "PPP")}</p>
                     </div>
@@ -798,8 +979,14 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
                 {/* Body */}
                 <div className="p-6">
                   {/* Bill To Section */}
-                  <div className="mb-6 pb-5 border-b-2 border-gray-200">
-                    <h3 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Bill To</h3>
+                  <div className={`mb-6 pb-5 ${
+                    selectedTemplate === "minimal" ? "" : "border-b-2 border-gray-200"
+                  }`}>
+                    <h3 className={`text-[11px] uppercase tracking-wider font-semibold mb-2 ${
+                      selectedTemplate === "classic" ? "text-blue-600" :
+                      selectedTemplate === "minimal" ? "text-gray-400 tracking-widest" :
+                      "text-gray-500"
+                    }`}>Bill To</h3>
                     <p className="text-lg font-semibold">{invoice.customerName}</p>
                     <p className="text-sm text-gray-600">{invoice.customerEmail}</p>
                     <p className="text-sm text-gray-600">{invoice.customerPhone}</p>
@@ -809,11 +996,31 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
                   {/* Items Table */}
                   <table className="w-full mb-6">
                     <thead>
-                      <tr className="border-y-2 border-gray-900">
-                        <th className="py-3 px-4 text-left text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Description</th>
-                        <th className="py-3 px-4 text-right text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Qty</th>
-                        <th className="py-3 px-4 text-right text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Rate</th>
-                        <th className="py-3 px-4 text-right text-[11px] uppercase tracking-wide text-gray-600 font-semibold bg-gray-50">Amount</th>
+                      <tr className={`${
+                        selectedTemplate === "modern" ? "border-y-2 border-gray-900" :
+                        selectedTemplate === "classic" ? "border-b-2 border-blue-600" :
+                        "border-b border-gray-200"
+                      }`}>
+                        <th className={`py-3 px-4 text-left text-[11px] uppercase tracking-wide font-semibold ${
+                          selectedTemplate === "modern" ? "bg-gray-50 text-gray-600" :
+                          selectedTemplate === "classic" ? "bg-blue-50 text-blue-700" :
+                          "text-gray-400"
+                        }`}>Description</th>
+                        <th className={`py-3 px-4 text-right text-[11px] uppercase tracking-wide font-semibold ${
+                          selectedTemplate === "modern" ? "bg-gray-50 text-gray-600" :
+                          selectedTemplate === "classic" ? "bg-blue-50 text-blue-700" :
+                          "text-gray-400"
+                        }`}>Qty</th>
+                        <th className={`py-3 px-4 text-right text-[11px] uppercase tracking-wide font-semibold ${
+                          selectedTemplate === "modern" ? "bg-gray-50 text-gray-600" :
+                          selectedTemplate === "classic" ? "bg-blue-50 text-blue-700" :
+                          "text-gray-400"
+                        }`}>Rate</th>
+                        <th className={`py-3 px-4 text-right text-[11px] uppercase tracking-wide font-semibold ${
+                          selectedTemplate === "modern" ? "bg-gray-50 text-gray-600" :
+                          selectedTemplate === "classic" ? "bg-blue-50 text-blue-700" :
+                          "text-gray-400"
+                        }`}>Amount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -845,7 +1052,11 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
                           <span>-₹{invoice.discount.toLocaleString()}</span>
                         </div>
                       )}
-                      <div className="flex justify-between py-4 mt-1 text-xl font-bold border-t-2 border-gray-900">
+                      <div className={`flex justify-between py-4 mt-1 text-xl font-bold ${
+                        selectedTemplate === "modern" ? "border-t-2 border-gray-900" :
+                        selectedTemplate === "classic" ? "border-t-2 border-blue-600 text-blue-700" :
+                        "border-t border-gray-200"
+                      }`}>
                         <span>Total</span>
                         <span>₹{invoice.total.toLocaleString()}</span>
                       </div>
@@ -856,20 +1067,31 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection }: AdminInvo
                   <div className="mt-8 pt-6 border-t-2 border-gray-200 grid grid-cols-2 gap-6">
                     {invoice.notes && (
                       <div>
-                        <h4 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Notes</h4>
+                        <h4 className={`text-[11px] uppercase tracking-wider font-semibold mb-2 ${
+                          selectedTemplate === "classic" ? "text-blue-600" : "text-gray-500"
+                        }`}>Notes</h4>
                         <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">{invoice.notes}</p>
                       </div>
                     )}
                     <div>
-                      <h4 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Terms & Conditions</h4>
+                      <h4 className={`text-[11px] uppercase tracking-wider font-semibold mb-2 ${
+                        selectedTemplate === "classic" ? "text-blue-600" : "text-gray-500"
+                      }`}>Terms & Conditions</h4>
                       <p className="text-xs text-gray-600 leading-relaxed">{invoice.terms}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Thank You */}
-                <div className="bg-gray-50 border-t-2 border-gray-900 py-4 text-center">
-                  <p className="text-sm font-semibold text-gray-700">Thank you for your business!</p>
+                <div className={`py-4 text-center ${
+                  selectedTemplate === "modern" ? "bg-gray-50 border-t-2 border-gray-900" :
+                  selectedTemplate === "classic" ? "bg-gradient-to-r from-blue-700 to-blue-500 text-white" :
+                  "border-t border-gray-200"
+                }`}>
+                  <p className={`text-sm font-semibold ${
+                    selectedTemplate === "minimal" ? "text-gray-500" : 
+                    selectedTemplate === "modern" ? "text-gray-700" : ""
+                  }`}>Thank you for your business!</p>
                 </div>
               </div>
             </CardContent>
