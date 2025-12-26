@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
@@ -126,6 +126,7 @@ const Admin = () => {
   const [pendingAppointmentsList, setPendingAppointmentsList] = useState<PendingAppointment[]>([]);
   const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const shownNotificationIdsRef = useRef<Set<string>>(new Set());
   const [accessDeniedOpen, setAccessDeniedOpen] = useState(false);
   const { user, isAdmin, isSuperAdmin, isLoading, signOut, permissions } = useAuth();
   const navigate = useNavigate();
@@ -185,39 +186,42 @@ const Admin = () => {
   useEffect(() => {
     if (!isAdmin || !user?.id) return;
 
-    console.log("Setting up real-time subscriptions...");
+     console.log("Setting up real-time subscriptions...");
 
-    // Track shown notification IDs to prevent duplicates
-    const shownNotificationIds = new Set<string>();
-
-    // Subscribe to notifications
-    const notificationsChannel = supabase
-      .channel('admin-notifications')
+     // Subscribe to notifications (admin area should only show admin/broadcast + this admin's own)
+     const notificationsChannel = supabase
+      .channel("admin-notifications")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications'
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
         },
         (payload) => {
           console.log("New notification:", payload);
           const newNotification = payload.new as any;
-          
+
+          // Filter out user-specific notifications (customers) for the admin notification center.
+          // Keep broadcast (user_id null) and notifications targeted to this admin.
+          const isVisibleToThisAdmin =
+            newNotification?.user_id == null || newNotification?.user_id === user?.id;
+          if (!isVisibleToThisAdmin) return;
+
           // Only show toast if we haven't shown this notification yet
-          if (newNotification?.id && !shownNotificationIds.has(newNotification.id)) {
-            shownNotificationIds.add(newNotification.id);
-            
+          if (
+            newNotification?.id &&
+            !shownNotificationIdsRef.current.has(newNotification.id)
+          ) {
+            shownNotificationIdsRef.current.add(newNotification.id);
+
             // Add to state directly instead of refetching to avoid race conditions
-            setNotifications(prev => {
-              // Check if notification already exists in state
-              if (prev.some(n => n.id === newNotification.id)) {
-                return prev;
-              }
+            setNotifications((prev) => {
+              if (prev.some((n) => n.id === newNotification.id)) return prev;
               return [newNotification, ...prev].slice(0, 20);
             });
-            setUnreadCount(prev => prev + 1);
-            
+            setUnreadCount((prev) => prev + 1);
+
             if (newNotification?.title) {
               toast({
                 title: "🔔 " + newNotification.title,
