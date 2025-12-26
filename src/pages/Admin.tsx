@@ -748,7 +748,7 @@ const Admin = () => {
       case "appointments":
         return <AdminAppointments onNavigateToInvoice={handleNavigateToInvoice} />;
       case "invoices":
-        return <AdminInvoices preSelectedAppointmentId={selectedAppointmentForInvoice} onClearSelection={() => setSelectedAppointmentForInvoice(null)} />;
+        return <AdminInvoices preSelectedAppointmentId={selectedAppointmentForInvoice} onClearSelection={() => setSelectedAppointmentForInvoice(null)} isSuperAdmin={isSuperAdmin} />;
       case "technicians":
         return <AdminTechnicians />;
       case "api-keys":
