@@ -6,6 +6,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple in-memory rate limiter
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 5; // Max 5 requests
+const RATE_WINDOW = 60000; // Per minute
+
+function isRateLimited(identifier: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(identifier);
+  
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_WINDOW });
+    return false;
+  }
+  
+  if (entry.count >= RATE_LIMIT) {
+    return true;
+  }
+  
+  entry.count++;
+  return false;
+}
+
+// Password validation
+function isValidPassword(password: string): boolean {
+  // Minimum 8 characters with at least one uppercase, lowercase, and number
+  return (
+    password.length >= 8 &&
+    password.length <= 128 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /[0-9]/.test(password)
+  );
+}
+
+// UUID validation
+function isValidUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -27,9 +67,9 @@ serve(async (req) => {
     // Get the authorization header to verify the requesting user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.log('No authorization header provided');
+      console.log('Authorization failed: No authorization header');
       return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -42,14 +82,21 @@ serve(async (req) => {
     // Get the requesting user
     const { data: { user: requestingUser }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !requestingUser) {
-      console.log('Failed to get requesting user:', userError);
+      console.log('Authorization failed: Invalid token');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Requesting user:', requestingUser.id);
+    // Rate limiting check
+    if (isRateLimited(requestingUser.id)) {
+      console.log('Rate limit exceeded for user:', requestingUser.id);
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Check if the requesting user is an admin or super_admin
     const { data: requestingUserRole } = await supabaseAdmin
@@ -59,30 +106,36 @@ serve(async (req) => {
       .single();
 
     if (!requestingUserRole || !['admin', 'super_admin'].includes(requestingUserRole.role)) {
-      console.log('User is not an admin:', requestingUserRole);
+      console.log('Authorization failed: User is not admin', requestingUser.id);
       return new Response(
-        JSON.stringify({ error: 'Only admins can change passwords' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const { targetUserId, newPassword } = await req.json();
 
+    // Input validation
     if (!targetUserId || !newPassword) {
       return new Response(
-        JSON.stringify({ error: 'Missing targetUserId or newPassword' }),
+        JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (newPassword.length < 6) {
+    if (!isValidUUID(targetUserId)) {
       return new Response(
-        JSON.stringify({ error: 'Password must be at least 6 characters' }),
+        JSON.stringify({ error: 'Invalid user ID format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Target user ID:', targetUserId);
+    if (!isValidPassword(newPassword)) {
+      return new Response(
+        JSON.stringify({ error: 'Password must be at least 8 characters with uppercase, lowercase, and a number' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Check target user's role
     const { data: targetUserRole } = await supabaseAdmin
@@ -93,18 +146,18 @@ serve(async (req) => {
 
     // Only super_admin can change admin passwords
     if (targetUserRole?.role === 'admin' && requestingUserRole.role !== 'super_admin') {
-      console.log('Regular admin trying to change admin password');
+      console.log('Authorization failed: Regular admin trying to change admin password', requestingUser.id);
       return new Response(
-        JSON.stringify({ error: 'Only Super Admin can change admin passwords' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Super admins cannot change other super admin passwords
     if (targetUserRole?.role === 'super_admin' && targetUserId !== requestingUser.id) {
-      console.log('Trying to change super admin password');
+      console.log('Authorization failed: Trying to change super admin password', requestingUser.id);
       return new Response(
-        JSON.stringify({ error: 'Cannot change Super Admin password' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -118,12 +171,12 @@ serve(async (req) => {
     if (updateError) {
       console.error('Error updating password:', updateError);
       return new Response(
-        JSON.stringify({ error: updateError.message }),
+        JSON.stringify({ error: 'Failed to update password' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Password changed successfully for user:', targetUserId);
+    console.log('Password changed successfully by:', requestingUser.id, 'for user:', targetUserId);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Password changed successfully' }),
@@ -131,10 +184,9 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Unexpected error:', errorMessage);
+    console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
