@@ -49,6 +49,10 @@ interface Appointment {
   service_price?: number;
   service_duration?: number;
   technician_name?: string;
+  // Guest booking fields (from guest_bookings table)
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
 }
 
 interface Technician {
@@ -114,13 +118,18 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
     const userIds = [...new Set((appointmentsData?.map(a => a.user_id).filter(Boolean) as string[]) || [])];
     const serviceIds = [...new Set(appointmentsData?.filter(a => a.service_id).map(a => a.service_id) || [])];
     const technicianIds = [...new Set(appointmentsData?.filter(a => a.technician_id).map(a => a.technician_id) || [])];
+    const appointmentIds = appointmentsData?.map(a => a.id) || [];
 
-    const [profilesRes, servicesRes, techniciansRes] = await Promise.all([
+    const [profilesRes, servicesRes, techniciansRes, guestBookingsRes] = await Promise.all([
       userIds.length > 0
         ? supabase.from("profiles").select("user_id, email, full_name, phone, address").in("user_id", userIds)
         : { data: [] as any[] },
       serviceIds.length > 0 ? supabase.from("services").select("id, name, description, price, duration_minutes").in("id", serviceIds) : { data: [] },
       technicianIds.length > 0 ? supabase.from("technicians").select("id, name").in("id", technicianIds) : { data: [] },
+      // Fetch guest bookings for appointments without user_id
+      appointmentIds.length > 0 
+        ? supabase.from("guest_bookings").select("appointment_id, guest_name, guest_email, guest_phone").in("appointment_id", appointmentIds)
+        : { data: [] as any[] },
     ]);
 
     const profilesMap: Record<string, { email: string; name: string; phone?: string; address?: string }> = {};
@@ -148,18 +157,35 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
       techniciansMap[t.id] = t.name;
     });
 
-    const enrichedAppointments = appointmentsData?.map(a => ({
-      ...a,
-      user_email: a.user_id ? profilesMap[a.user_id]?.email : undefined,
-      user_name: a.user_id ? profilesMap[a.user_id]?.name : undefined,
-      user_phone: a.user_id ? profilesMap[a.user_id]?.phone : undefined,
-      user_address: a.user_id ? profilesMap[a.user_id]?.address : undefined,
-      service_name: a.service_id ? servicesMap[a.service_id]?.name : undefined,
-      service_description: a.service_id ? servicesMap[a.service_id]?.description : undefined,
-      service_price: a.service_id ? servicesMap[a.service_id]?.price : undefined,
-      service_duration: a.service_id ? servicesMap[a.service_id]?.duration : undefined,
-      technician_name: a.technician_id ? techniciansMap[a.technician_id] : undefined,
-    })) || [];
+    // Map guest bookings by appointment ID
+    const guestBookingsMap: Record<string, { name: string; email: string; phone: string }> = {};
+    guestBookingsRes.data?.forEach(g => {
+      guestBookingsMap[g.appointment_id] = {
+        name: g.guest_name,
+        email: g.guest_email,
+        phone: g.guest_phone
+      };
+    });
+
+    const enrichedAppointments = appointmentsData?.map(a => {
+      const guestData = guestBookingsMap[a.id];
+      return {
+        ...a,
+        user_email: a.user_id ? profilesMap[a.user_id]?.email : undefined,
+        user_name: a.user_id ? profilesMap[a.user_id]?.name : undefined,
+        user_phone: a.user_id ? profilesMap[a.user_id]?.phone : undefined,
+        user_address: a.user_id ? profilesMap[a.user_id]?.address : undefined,
+        service_name: a.service_id ? servicesMap[a.service_id]?.name : undefined,
+        service_description: a.service_id ? servicesMap[a.service_id]?.description : undefined,
+        service_price: a.service_id ? servicesMap[a.service_id]?.price : undefined,
+        service_duration: a.service_id ? servicesMap[a.service_id]?.duration : undefined,
+        technician_name: a.technician_id ? techniciansMap[a.technician_id] : undefined,
+        // Guest booking data (for appointments without user_id)
+        guest_name: guestData?.name,
+        guest_email: guestData?.email,
+        guest_phone: guestData?.phone,
+      };
+    }) || [];
 
     setAppointments(enrichedAppointments);
     setLoading(false);
@@ -372,9 +398,11 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
                   <td className="p-4">
                     <div>
                       <p className="font-medium text-foreground">
-                        {appointment.user_name || (appointment.user_id ? "Unknown" : "Guest Booking")}
+                        {appointment.user_name || appointment.guest_name || (appointment.user_id ? "Unknown" : "Guest Booking")}
                       </p>
-                      <p className="text-sm text-muted-foreground">{appointment.user_email || "No email"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {appointment.user_email || appointment.guest_email || "No email"}
+                      </p>
                     </div>
                   </td>
                   <td className="p-4 hidden md:table-cell">
@@ -599,19 +627,19 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Name:</span>
                     <span className="font-medium">
-                      {viewAppointment.user_name || (viewAppointment.user_id ? "Unknown" : "Guest Booking")}
+                      {viewAppointment.user_name || viewAppointment.guest_name || (viewAppointment.user_id ? "Unknown" : "Guest Booking")}
                     </span>
                   </div>
-                  {viewAppointment.user_email && (
+                  {(viewAppointment.user_email || viewAppointment.guest_email) && (
                     <div className="flex items-center gap-2">
                       <Mail className="w-3 h-3 text-muted-foreground" />
-                      <span>{viewAppointment.user_email}</span>
+                      <span>{viewAppointment.user_email || viewAppointment.guest_email}</span>
                     </div>
                   )}
-                  {viewAppointment.user_phone && (
+                  {(viewAppointment.user_phone || viewAppointment.guest_phone) && (
                     <div className="flex items-center gap-2">
                       <Phone className="w-3 h-3 text-muted-foreground" />
-                      <span>{viewAppointment.user_phone}</span>
+                      <span>{viewAppointment.user_phone || viewAppointment.guest_phone}</span>
                     </div>
                   )}
                   {viewAppointment.user_address && (
@@ -619,6 +647,9 @@ const AdminAppointments = ({ onNavigateToInvoice }: AdminAppointmentsProps) => {
                       <MapPin className="w-3 h-3 text-muted-foreground" />
                       <span>{viewAppointment.user_address}</span>
                     </div>
+                  )}
+                  {!viewAppointment.user_id && viewAppointment.guest_name && (
+                    <Badge variant="outline" className="w-fit mt-1">Guest Booking</Badge>
                   )}
                 </div>
               </div>

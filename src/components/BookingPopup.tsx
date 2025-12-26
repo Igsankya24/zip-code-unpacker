@@ -287,13 +287,10 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
 
     setSubmitting(true);
 
-    // Build notes with coupon + guest info if needed
+    // Build notes with coupon info only (no PII)
     const noteParts: string[] = [];
     if (appliedCoupon) {
       noteParts.push(`Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)`);
-    }
-    if (!currentUser) {
-      noteParts.push(`Guest details: Name=${guestDetails.name}, Email=${guestDetails.email}, Phone=${guestDetails.phone}`);
     }
 
     const insertData = {
@@ -304,8 +301,6 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
       status: "pending",
       notes: noteParts.length ? noteParts.join(" | ") : null,
     };
-    
-    console.log("BookingPopup inserting appointment:", insertData);
 
     const { error, data } = await supabase
       .from("appointments")
@@ -317,6 +312,23 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
       toast({ title: "Error", description: error.message, variant: "destructive" });
       setSubmitting(false);
       return;
+    }
+
+    // Store guest details in dedicated table for proper data management
+    if (!currentUser && data?.id) {
+      const { error: guestError } = await supabase
+        .from("guest_bookings")
+        .insert({
+          appointment_id: data.id,
+          guest_name: guestDetails.name,
+          guest_email: guestDetails.email,
+          guest_phone: guestDetails.phone,
+        });
+
+      if (guestError) {
+        console.error("Error storing guest details:", guestError);
+        // Don't fail the booking, just log the error
+      }
     }
 
     if (appliedCoupon) {
