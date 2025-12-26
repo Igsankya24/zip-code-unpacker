@@ -556,12 +556,11 @@ const Chatbot = () => {
     const currentUser = authData?.user;
     console.log("Chatbot booking - currentUser:", currentUser?.id, currentUser?.email);
 
+    // Notes without PII - only booking metadata
     const notes = `Booked via chatbot${appliedCoupon ? ` | Coupon: ${appliedCoupon.code} (${appliedCoupon.discount_percent}% off)` : ""}${finalPrice ? ` | Final Price: ₹${finalPrice.toFixed(0)}` : ""}`;
 
     // Guest booking (no login): create an appointment row with user_id = NULL so it shows in admin appointments
     if (!currentUser) {
-      const guestNotes = `${notes} | Guest details: Name=${userDetails.name}, Email=${userDetails.email}, Phone=${userDetails.phone}`;
-
       const { data: appointment, error: appointmentError } = await supabase
         .from("appointments")
         .insert({
@@ -569,7 +568,7 @@ const Chatbot = () => {
           service_id: selectedService,
           appointment_date: appointmentDate,
           appointment_time: appointmentTime,
-          notes: guestNotes,
+          notes,
           status: "pending",
         })
         .select("id, reference_id")
@@ -578,6 +577,21 @@ const Chatbot = () => {
       if (appointmentError || !appointment) {
         toast({ title: "Error", description: appointmentError?.message || "Failed to submit booking request", variant: "destructive" });
         return;
+      }
+
+      // Store guest details in dedicated table for proper data management
+      const { error: guestError } = await supabase
+        .from("guest_bookings")
+        .insert({
+          appointment_id: appointment.id,
+          guest_name: userDetails.name,
+          guest_email: userDetails.email,
+          guest_phone: userDetails.phone,
+        });
+
+      if (guestError) {
+        console.error("Error storing guest details:", guestError);
+        // Don't fail the booking, just log the error
       }
 
       if (appliedCoupon) {

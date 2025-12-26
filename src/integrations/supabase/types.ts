@@ -107,36 +107,6 @@ export type Database = {
         }
         Relationships: []
       }
-      api_keys: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          is_active: boolean | null
-          key_name: string
-          key_value: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          key_name: string
-          key_value: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          key_name?: string
-          key_value?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       appointments: {
         Row: {
           appointment_date: string
@@ -307,6 +277,44 @@ export type Database = {
           target_id?: string
         }
         Relationships: []
+      }
+      guest_bookings: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          guest_email?: string
+          guest_name?: string
+          guest_phone?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_bookings_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
