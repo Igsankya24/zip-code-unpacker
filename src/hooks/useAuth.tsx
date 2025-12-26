@@ -217,8 +217,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Flag to prevent session check during login process
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   // Check if current session is still valid (single-session enforcement)
   const checkSessionValidity = async (userId: string) => {
+    // Skip check if we're in the middle of logging in
+    if (isLoggingIn) return true;
+    
     const storedSessionId = localStorage.getItem("active_session_id");
     if (!storedSessionId) return true; // No session stored, allow
 
@@ -363,6 +369,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Set flag to prevent session validity check during login
+    setIsLoggingIn(true);
+    
+    // Clear old session ID before login to prevent race condition
+    localStorage.removeItem("active_session_id");
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -394,6 +406,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error tracking session:", sessionError);
       }
     }
+
+    // Reset the logging in flag after a short delay to allow auth state to settle
+    setTimeout(() => {
+      setIsLoggingIn(false);
+    }, 2000);
 
     return { error: error as Error | null };
   };
