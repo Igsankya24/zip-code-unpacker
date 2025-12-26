@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, Trash2, Key, Shield, LogIn, CalendarCheck } from "lucide-react";
+import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, Trash2, Key, Shield, LogIn, CalendarCheck, UserPlus, Eye, EyeOff } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Select,
   SelectContent,
@@ -62,7 +63,16 @@ const AdminUsers = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [createUserOpen, setCreateUserOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserFullName, setNewUserFullName] = useState("");
+  const [newUserRole, setNewUserRole] = useState("user");
+  const [newUserApproved, setNewUserApproved] = useState(true);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const { toast } = useToast();
+  const { isSuperAdmin } = useAuth();
 
   useEffect(() => {
     fetchUsers();
@@ -288,6 +298,52 @@ const AdminUsers = () => {
     setChangingPassword(false);
   };
 
+  const createUser = async () => {
+    if (!newUserEmail || !newUserPassword) {
+      toast({ title: "Error", description: "Email and password are required", variant: "destructive" });
+      return;
+    }
+
+    if (newUserPassword.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+
+    setCreatingUser(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: {
+          email: newUserEmail,
+          password: newUserPassword,
+          fullName: newUserFullName,
+          role: newUserRole,
+          isApproved: newUserApproved,
+        },
+      });
+
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else if (data?.error) {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      } else {
+        toast({ title: "Success", description: "User created successfully" });
+        setCreateUserOpen(false);
+        setNewUserEmail("");
+        setNewUserPassword("");
+        setNewUserFullName("");
+        setNewUserRole("user");
+        setNewUserApproved(true);
+        fetchUsers();
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create user";
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+    }
+
+    setCreatingUser(false);
+  };
+
   const handleEditSave = async () => {
     if (!editingUser) return;
 
@@ -370,6 +426,12 @@ const AdminUsers = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-foreground">Users</h2>
         <div className="flex items-center gap-2">
+          {isSuperAdmin && (
+            <Button onClick={() => setCreateUserOpen(true)} className="gap-2">
+              <UserPlus className="w-4 h-4" />
+              Create User
+            </Button>
+          )}
           <ExportDateRange onExport={handleExport} />
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -705,6 +767,103 @@ const AdminUsers = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Dialog - Super Admin Only */}
+      <Dialog open={createUserOpen} onOpenChange={setCreateUserOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5" />
+              Create New User
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Full Name</label>
+              <Input
+                value={newUserFullName}
+                onChange={(e) => setNewUserFullName(e.target.value)}
+                placeholder="John Doe"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Email *</label>
+              <Input
+                type="email"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+                placeholder="user@example.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Password *</label>
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Role</label>
+              <Select value={newUserRole} onValueChange={setNewUserRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="newUserApproved"
+                checked={newUserApproved}
+                onChange={(e) => setNewUserApproved(e.target.checked)}
+                className="rounded border-border"
+              />
+              <label htmlFor="newUserApproved" className="text-sm text-muted-foreground">
+                Approve user immediately
+              </label>
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCreateUserOpen(false);
+                  setNewUserEmail("");
+                  setNewUserPassword("");
+                  setNewUserFullName("");
+                  setNewUserRole("user");
+                  setNewUserApproved(true);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={createUser}
+                disabled={creatingUser || !newUserEmail || !newUserPassword || newUserPassword.length < 6}
+              >
+                {creatingUser ? "Creating..." : "Create User"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
