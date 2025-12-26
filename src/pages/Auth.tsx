@@ -8,14 +8,12 @@ import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { signIn, signUp, signOut, user, isAdmin } = useAuth();
+  const { signIn, signOut, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const hasRedirected = useRef(false);
@@ -33,7 +31,6 @@ const Auth = () => {
         const userRoles = roles?.map(r => r.role) || [];
         const isAdminUser = userRoles.includes("admin") || userRoles.includes("super_admin");
         
-        // Admins go to admin panel, regular users go to user dashboard
         navigate(isAdminUser ? "/admin" : "/dashboard");
       };
       checkAndRedirect();
@@ -60,61 +57,44 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await signIn(email, password);
-        if (error) {
-          toast({
-            title: "Login Failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        } else {
-          // Check if account is frozen
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const isFrozen = await checkFrozenStatus(user.id);
-            if (isFrozen) {
-              await signOut();
-              toast({
-                title: "Account Frozen",
-                description: "Your account is not accessible. Please contact admin for assistance.",
-                variant: "destructive",
-              });
-              setIsLoading(false);
-              return;
-            }
-
-            // Check if user is admin/super_admin
-            const { data: roles } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", user.id);
-
-            const userRoles = roles?.map(r => r.role) || [];
-            const isAdminUser = userRoles.includes("admin") || userRoles.includes("super_admin");
-            
-            toast({
-              title: "Welcome back!",
-              description: "You have successfully logged in.",
-            });
-            
-            // Redirect admins to admin panel, regular users to user dashboard
-            navigate(isAdminUser ? "/admin" : "/dashboard");
-          }
-        }
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
+        });
       } else {
-        const { error } = await signUp(email, password, fullName);
-        if (error) {
+        // Check if account is frozen
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const isFrozen = await checkFrozenStatus(user.id);
+          if (isFrozen) {
+            await signOut();
+            toast({
+              title: "Account Frozen",
+              description: "Your account is not accessible. Please contact admin for assistance.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+
+          // Check if user is admin/super_admin
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id);
+
+          const userRoles = roles?.map(r => r.role) || [];
+          const isAdminUser = userRoles.includes("admin") || userRoles.includes("super_admin");
+          
           toast({
-            title: "Sign Up Failed",
-            description: error.message,
-            variant: "destructive",
+            title: "Welcome back!",
+            description: "You have successfully logged in.",
           });
-        } else {
-          toast({
-            title: "Account Created!",
-            description: "Please check your email to verify your account.",
-          });
+          
+          navigate(isAdminUser ? "/admin" : "/dashboard");
         }
       }
     } catch (error) {
@@ -133,32 +113,11 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="bg-card rounded-2xl p-8 border border-border shadow-lg">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              {isLogin ? "Welcome Back" : "Create Account"}
-            </h1>
-            <p className="text-muted-foreground">
-              {isLogin
-                ? "Sign in to access your account"
-                : "Sign up to get started with Krishna Tech Solutions"}
-            </p>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Welcome Back</h1>
+            <p className="text-muted-foreground">Sign in to access your account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Full Name
-                </label>
-                <Input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
-                  required={!isLogin}
-                />
-              </div>
-            )}
-
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
                 Email
@@ -196,19 +155,13 @@ const Auth = () => {
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
+              {isLoading ? "Please wait..." : "Sign In"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-muted-foreground">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary hover:underline font-medium"
-              >
-                {isLogin ? "Sign Up" : "Sign In"}
-              </button>
+            <p className="text-sm text-muted-foreground">
+              Need an account? Contact your administrator.
             </p>
           </div>
 
