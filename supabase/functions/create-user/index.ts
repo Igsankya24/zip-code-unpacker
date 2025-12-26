@@ -6,6 +6,49 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple in-memory rate limiter
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 5; // Max 5 requests
+const RATE_WINDOW = 60000; // Per minute
+
+function isRateLimited(identifier: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(identifier);
+  
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_WINDOW });
+    return false;
+  }
+  
+  if (entry.count >= RATE_LIMIT) {
+    return true;
+  }
+  
+  entry.count++;
+  return false;
+}
+
+// Input validation helpers
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 255;
+}
+
+function isValidPassword(password: string): boolean {
+  // Minimum 8 characters with at least one uppercase, lowercase, and number
+  return (
+    password.length >= 8 &&
+    password.length <= 128 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /[0-9]/.test(password)
+  );
+}
+
+function sanitizeInput(input: string, maxLength: number = 100): string {
+  return input.trim().slice(0, maxLength);
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -20,7 +63,8 @@ serve(async (req) => {
     // Verify the requesting user is a super_admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
+      console.log("Authorization failed: No authorization header");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -30,8 +74,18 @@ serve(async (req) => {
     const { data: { user: requestingUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !requestingUser) {
+      console.log("Authorization failed: Invalid token");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rate limiting check
+    if (isRateLimited(requestingUser.id)) {
+      console.log("Rate limit exceeded for user:", requestingUser.id);
+      return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+        status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -44,7 +98,8 @@ serve(async (req) => {
 
     const isSuperAdmin = roles?.some((r) => r.role === "super_admin");
     if (!isSuperAdmin) {
-      return new Response(JSON.stringify({ error: "Only Super Admins can create users" }), {
+      console.log("Authorization failed: User is not super_admin", requestingUser.id);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -53,8 +108,35 @@ serve(async (req) => {
     // Get the new user details from request body
     const { email, password, fullName, role, isApproved } = await req.json();
 
+    // Input validation
     if (!email || !password) {
       return new Response(JSON.stringify({ error: "Email and password are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isValidEmail(email)) {
+      return new Response(JSON.stringify({ error: "Invalid email format" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isValidPassword(password)) {
+      return new Response(JSON.stringify({ error: "Password must be at least 8 characters with uppercase, lowercase, and a number" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Sanitize fullName
+    const sanitizedFullName = fullName ? sanitizeInput(fullName, 100) : "";
+
+    // Validate role
+    const validRoles = ["user", "admin", "super_admin"];
+    if (role && !validRoles.includes(role)) {
+      return new Response(JSON.stringify({ error: "Invalid role" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -66,13 +148,13 @@ serve(async (req) => {
       password,
       email_confirm: true, // Auto-confirm email
       user_metadata: {
-        full_name: fullName || "",
+        full_name: sanitizedFullName,
       },
     });
 
     if (createError) {
       console.error("Error creating user:", createError);
-      return new Response(JSON.stringify({ error: createError.message }), {
+      return new Response(JSON.stringify({ error: "Failed to create user" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -84,6 +166,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log("User created successfully by super_admin:", requestingUser.id, "new user:", newUser.user.id);
 
     // Update profile with approval status if specified
     if (isApproved !== undefined) {
@@ -108,8 +192,7 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("Error in create-user function:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -41,7 +41,7 @@ interface BotSettings {
   whatsappFallbackEnabled: boolean;
 }
 
-type BookingStep = "chat" | "date" | "time" | "details" | "confirm" | "tracking" | "tracking_input";
+type BookingStep = "chat" | "date" | "time" | "details" | "confirm" | "tracking" | "tracking_input" | "collect_contact_email";
 
 // Convert 12hr format to 24hr for database
 const convertTo24Hr = (time12: string): string => {
@@ -381,6 +381,12 @@ const Chatbot = () => {
     setMessages([...messages, { type: "user", text: currentInput }]);
     setInput("");
 
+    // Handle contact email collection step
+    if (step === "collect_contact_email") {
+      await handleContactEmailSubmit(currentInput);
+      return;
+    }
+
     // Handle tracking step
     if (step === "tracking") {
       await handleTrackAppointment(currentInput);
@@ -450,24 +456,47 @@ const Chatbot = () => {
         ]);
       }, 500);
     } else {
-      await supabase.from("contact_messages").insert({
-        name: "Chat User",
-        email: "chatbot@temp.com",
-        message: currentInput,
-        source: "chatbot",
-      });
-
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "bot",
-            text: "Thank you for your message! Our team will get back to you shortly.",
-            showFallback: true,
-          },
-        ]);
-      }, 1000);
+      // Store the message and ask for contact email
+      sessionStorage.setItem("pending_contact_message", currentInput);
+      setMessages((prev) => [
+        ...prev,
+        { type: "bot", text: "Thank you for your message! To help us respond, please provide your email address:" },
+      ]);
+      setStep("collect_contact_email");
     }
+  };
+
+  const handleContactEmailSubmit = async (email: string) => {
+    const pendingMessage = sessionStorage.getItem("pending_contact_message");
+    sessionStorage.removeItem("pending_contact_message");
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setMessages((prev) => [
+        ...prev,
+        { type: "bot", text: "Please enter a valid email address:" },
+      ]);
+      return;
+    }
+
+    await supabase.from("contact_messages").insert({
+      name: "Chat User",
+      email: email.trim(),
+      message: pendingMessage || "No message provided",
+      source: "chatbot",
+    });
+
+    setMessages((prev) => [
+      ...prev,
+      { type: "user", text: email },
+      {
+        type: "bot",
+        text: "Thank you! Our team will get back to you shortly at " + email,
+        showFallback: true,
+      },
+    ]);
+    setStep("chat");
   };
 
   const handleQuickOption = (option: string) => {

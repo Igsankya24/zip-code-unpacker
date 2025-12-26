@@ -687,6 +687,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      sanitize_html: { Args: { input_text: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "super_admin" | "user"
