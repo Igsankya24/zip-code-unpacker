@@ -792,61 +792,51 @@ const Admin = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform transition-transform duration-300 ${
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform transition-transform duration-300 flex flex-col h-screen ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-border">
-            <h1 className="text-xl font-bold text-foreground">
-              {isSuperAdmin ? "Admin Panel" : isAdmin ? "Control Panel" : "User Panel"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">Krishna Tech Solutions</p>
-          </div>
+        <div className="p-6 border-b border-border flex-shrink-0">
+          <h1 className="text-xl font-bold text-foreground">
+            {isSuperAdmin ? "Admin Panel" : isAdmin ? "Control Panel" : "User Panel"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Krishna Tech Solutions</p>
+        </div>
 
-          <nav className="flex-1 p-4 space-y-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <tab.icon className="w-5 h-5" />
-                {tab.label}
-                {tab.badge && tab.badge > 0 && (
-                  <span className="ml-auto bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          <div className="p-4 border-t border-border">
-            <div className="mb-4 px-4">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">
-                  {isSuperAdmin ? "Super Admin" : "Admin"}
-                </p>
-                {isSuperAdmin && <Shield className="w-4 h-4 text-primary" />}
-              </div>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleSignOut}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeTab === tab.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+              <tab.icon className="w-5 h-5" />
+              {tab.label}
+              {tab.badge && tab.badge > 0 && (
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t border-border flex-shrink-0">
+          <div className="px-4">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-foreground">
+                {isSuperAdmin ? "Super Admin" : "Admin"}
+              </p>
+              {isSuperAdmin && <Shield className="w-4 h-4 text-primary" />}
+            </div>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </div>
       </aside>
@@ -862,7 +852,7 @@ const Admin = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Bar with Notifications */}
-        <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-end gap-4">
+        <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-end gap-3">
           <ThemeToggle />
           <Popover>
             <PopoverTrigger asChild>
@@ -916,6 +906,15 @@ const Admin = () => {
               </div>
             </PopoverContent>
           </Popover>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSignOut}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </Button>
         </header>
 
         {/* Page Content */}
