@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, Trash2, Key, Shield, LogIn, CalendarCheck, UserPlus, Eye, EyeOff } from "lucide-react";
+import { UserCheck, UserX, Search, Edit, X, Save, Camera, Phone, MapPin, Mail, Lock, Unlock, Trash2, Key, Shield, LogIn, CalendarCheck, UserPlus, Eye, EyeOff, AtSign } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -48,6 +48,7 @@ interface UserProfile {
   role?: string;
   login_count?: number;
   appointment_count?: number;
+  username?: string | null;
 }
 
 const AdminUsers = () => {
@@ -64,15 +65,16 @@ const AdminUsers = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [createUserOpen, setCreateUserOpen] = useState(false);
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserUsername, setNewUserUsername] = useState("");
+  const [newUserIdentifier, setNewUserIdentifier] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserFullName, setNewUserFullName] = useState("");
   const [newUserRole, setNewUserRole] = useState("user");
   const [newUserApproved, setNewUserApproved] = useState(true);
   const [creatingUser, setCreatingUser] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [createMode, setCreateMode] = useState<"username" | "email">("username");
+  const [usernameChangeUser, setUsernameChangeUser] = useState<UserProfile | null>(null);
+  const [newUsername, setNewUsername] = useState("");
+  const [changingUsername, setChangingUsername] = useState(false);
   const { toast } = useToast();
   const { isSuperAdmin } = useAuth();
 
@@ -300,22 +302,13 @@ const AdminUsers = () => {
     setChangingPassword(false);
   };
 
+  // Detect if input is email or username
+  const isEmail = (value: string) => value.includes("@");
+
   const createUser = async () => {
-    // Determine email based on mode
-    let email = "";
-    if (createMode === "username") {
-      if (!newUserUsername) {
-        toast({ title: "Error", description: "Username is required", variant: "destructive" });
-        return;
-      }
-      // Generate email from username
-      email = `${newUserUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}@krishnatech.internal`;
-    } else {
-      if (!newUserEmail) {
-        toast({ title: "Error", description: "Email is required", variant: "destructive" });
-        return;
-      }
-      email = newUserEmail;
+    if (!newUserIdentifier) {
+      toast({ title: "Error", description: "Username or email is required", variant: "destructive" });
+      return;
     }
 
     if (!newUserPassword) {
@@ -331,13 +324,21 @@ const AdminUsers = () => {
     setCreatingUser(true);
 
     try {
+      const identifier = newUserIdentifier.trim();
+      const isEmailInput = isEmail(identifier);
+      
+      // Generate email - if username, create internal email
+      const email = isEmailInput ? identifier : `${identifier.toLowerCase().replace(/[^a-z0-9]/g, '')}@krishnatech.internal`;
+      const username = isEmailInput ? null : identifier;
+
       const { data, error } = await supabase.functions.invoke("create-user", {
         body: {
           email: email,
           password: newUserPassword,
-          fullName: newUserFullName || (createMode === "username" ? newUserUsername : ""),
+          fullName: newUserFullName || (username || ""),
           role: newUserRole,
           isApproved: newUserApproved,
+          username: username,
         },
       });
 
@@ -346,15 +347,13 @@ const AdminUsers = () => {
       } else if (data?.error) {
         toast({ title: "Error", description: data.error, variant: "destructive" });
       } else {
-        toast({ title: "Success", description: `User created successfully${createMode === "username" ? `. Username: ${newUserUsername}` : ""}` });
+        toast({ title: "Success", description: `User created successfully${username ? `. Username: ${username}` : ""}` });
         setCreateUserOpen(false);
-        setNewUserEmail("");
-        setNewUserUsername("");
+        setNewUserIdentifier("");
         setNewUserPassword("");
         setNewUserFullName("");
         setNewUserRole("user");
         setNewUserApproved(true);
-        setCreateMode("username");
         fetchUsers();
       }
     } catch (err: unknown) {
@@ -363,6 +362,33 @@ const AdminUsers = () => {
     }
 
     setCreatingUser(false);
+  };
+
+  const changeUsername = async () => {
+    if (!usernameChangeUser || !newUsername.trim()) return;
+
+    setChangingUsername(true);
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ username: newUsername.trim(), updated_at: new Date().toISOString() })
+        .eq("user_id", usernameChangeUser.user_id);
+
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Success", description: "Username updated successfully" });
+        setUsernameChangeUser(null);
+        setNewUsername("");
+        fetchUsers();
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to change username";
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+    }
+
+    setChangingUsername(false);
   };
 
   const handleEditSave = async () => {
@@ -490,6 +516,9 @@ const AdminUsers = () => {
                       </Avatar>
                       <div>
                         <p className="font-medium text-foreground">{user.full_name || "No name"}</p>
+                        {user.username && (
+                          <p className="text-xs text-primary">@{user.username}</p>
+                        )}
                         <p className="text-sm text-muted-foreground">{user.email}</p>
                       </div>
                     </div>
@@ -591,6 +620,17 @@ const AdminUsers = () => {
                           <Key className="w-4 h-4 text-blue-500" />
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setUsernameChangeUser(user);
+                          setNewUsername(user.username || "");
+                        }}
+                        title="Change username"
+                      >
+                        <AtSign className="w-4 h-4 text-purple-500" />
+                      </Button>
                       {user.role !== "super_admin" && (
                         <Button
                           variant="ghost"
@@ -801,32 +841,6 @@ const AdminUsers = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Mode Toggle */}
-            <div className="flex bg-muted/50 rounded-lg p-1">
-              <button
-                type="button"
-                onClick={() => setCreateMode("username")}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  createMode === "username"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Username
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreateMode("email")}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  createMode === "email"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Email
-              </button>
-            </div>
-
             <div>
               <label className="text-sm font-medium text-foreground">Full Name</label>
               <Input
@@ -836,32 +850,19 @@ const AdminUsers = () => {
               />
             </div>
 
-            {createMode === "username" ? (
-              <div>
-                <label className="text-sm font-medium text-foreground">Username *</label>
-                <Input
-                  type="text"
-                  value={newUserUsername}
-                  onChange={(e) => setNewUserUsername(e.target.value)}
-                  placeholder="johndoe"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  User will login with this username
-                </p>
-              </div>
-            ) : (
-              <div>
-                <label className="text-sm font-medium text-foreground">Email *</label>
-                <Input
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  required
-                />
-              </div>
-            )}
+            <div>
+              <label className="text-sm font-medium text-foreground">Username or Email *</label>
+              <Input
+                type="text"
+                value={newUserIdentifier}
+                onChange={(e) => setNewUserIdentifier(e.target.value)}
+                placeholder="username or user@example.com"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter username (without @) or full email address
+              </p>
+            </div>
 
             <div>
               <label className="text-sm font-medium text-foreground">Password *</label>
@@ -912,25 +913,74 @@ const AdminUsers = () => {
                 variant="outline"
                 onClick={() => {
                   setCreateUserOpen(false);
-                  setNewUserEmail("");
-                  setNewUserUsername("");
+                  setNewUserIdentifier("");
                   setNewUserPassword("");
                   setNewUserFullName("");
                   setNewUserRole("user");
                   setNewUserApproved(true);
-                  setCreateMode("username");
                 }}
               >
                 Cancel
               </Button>
               <Button
                 onClick={createUser}
-                disabled={creatingUser || (createMode === "username" ? !newUserUsername : !newUserEmail) || !newUserPassword || newUserPassword.length < 6}
+                disabled={creatingUser || !newUserIdentifier || !newUserPassword || newUserPassword.length < 6}
               >
                 {creatingUser ? "Creating..." : "Create User"}
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Username Dialog */}
+      <Dialog open={!!usernameChangeUser} onOpenChange={() => {
+        setUsernameChangeUser(null);
+        setNewUsername("");
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Username</DialogTitle>
+          </DialogHeader>
+          {usernameChangeUser && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm font-medium">{usernameChangeUser.full_name || 'User'}</p>
+                <p className="text-xs text-muted-foreground">{usernameChangeUser.email}</p>
+                {usernameChangeUser.username && (
+                  <p className="text-xs text-muted-foreground">Current username: {usernameChangeUser.username}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New Username</label>
+                <Input
+                  type="text"
+                  placeholder="Enter new username"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setUsernameChangeUser(null);
+                    setNewUsername("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={changeUsername}
+                  disabled={changingUsername || !newUsername.trim()}
+                >
+                  {changingUsername ? "Changing..." : "Change Username"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

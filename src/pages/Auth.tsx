@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, User, Mail } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
@@ -12,7 +12,6 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [loginMode, setLoginMode] = useState<"username" | "email">("username");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>("Welcome Back");
   
@@ -77,25 +76,26 @@ const Auth = () => {
     return (data as any)?.is_frozen ?? false;
   };
 
+  // Detect if input is email or username
+  const isEmail = (value: string) => value.includes("@");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // If username mode, convert to email format
-      let email = loginId;
-      if (loginMode === "username") {
-        // Check if it's already an email
-        if (!loginId.includes("@")) {
-          email = `${loginId}@krishnatech.internal`;
-        }
+      let email = loginId.trim();
+      
+      // If not email format, treat as username and convert
+      if (!isEmail(email)) {
+        email = `${email}@krishnatech.internal`;
       }
 
       const { error } = await signIn(email, password);
       if (error) {
         toast({
           title: "Login Failed",
-          description: loginMode === "username" ? "Invalid username or password" : error.message,
+          description: "Invalid username/email or password",
           variant: "destructive",
         });
       } else {
@@ -158,51 +158,18 @@ const Auth = () => {
             <p className="text-muted-foreground">Sign in to access your account</p>
           </div>
 
-          {/* Login Mode Toggle */}
-          <div className="flex mb-6 bg-muted/50 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => setLoginMode("username")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                loginMode === "username"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Username
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoginMode("email")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                loginMode === "email"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Mail className="w-4 h-4" />
-              Email
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                {loginMode === "username" ? "Username" : "Email"}
+                Username or Email
               </label>
               <Input
-                type={loginMode === "email" ? "email" : "text"}
+                type="text"
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
-                placeholder={loginMode === "username" ? "Enter your username" : "you@example.com"}
+                placeholder="Enter username or email"
                 required
               />
-              {loginMode === "username" && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Enter just your username without @
-                </p>
-              )}
             </div>
 
             <div>

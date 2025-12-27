@@ -106,7 +106,7 @@ serve(async (req) => {
     }
 
     // Get the new user details from request body
-    const { email, password, fullName, role, isApproved } = await req.json();
+    const { email, password, fullName, role, isApproved, username } = await req.json();
 
     // Input validation
     if (!email || !password) {
@@ -130,8 +130,9 @@ serve(async (req) => {
       });
     }
 
-    // Sanitize fullName
+    // Sanitize inputs
     const sanitizedFullName = fullName ? sanitizeInput(fullName, 100) : "";
+    const sanitizedUsername = username ? sanitizeInput(username, 50) : null;
 
     // Validate role
     const validRoles = ["user", "admin", "super_admin"];
@@ -140,6 +141,22 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Check if username is already taken
+    if (sanitizedUsername) {
+      const { data: existingUser } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("username", sanitizedUsername)
+        .maybeSingle();
+
+      if (existingUser) {
+        return new Response(JSON.stringify({ error: "Username already taken" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Create the user using admin API
@@ -169,11 +186,19 @@ serve(async (req) => {
 
     console.log("User created successfully by super_admin:", requestingUser.id, "new user:", newUser.user.id);
 
-    // Update profile with approval status if specified
+    // Update profile with approval status and username if specified
+    const profileUpdate: Record<string, any> = {};
     if (isApproved !== undefined) {
+      profileUpdate.is_approved = isApproved;
+    }
+    if (sanitizedUsername) {
+      profileUpdate.username = sanitizedUsername;
+    }
+    
+    if (Object.keys(profileUpdate).length > 0) {
       await supabaseAdmin
         .from("profiles")
-        .update({ is_approved: isApproved })
+        .update(profileUpdate)
         .eq("user_id", newUser.user.id);
     }
 
