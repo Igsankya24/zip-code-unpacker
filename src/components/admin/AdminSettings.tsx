@@ -404,6 +404,44 @@ const AdminSettings = () => {
         </div>
       </div>
 
+      {/* Auth Page Branding */}
+      <div className="bg-card rounded-xl p-6 border border-border space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Auth Page Branding</h3>
+        <p className="text-sm text-muted-foreground">Configure logo and branding for the login page</p>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Auth Logo URL</label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.auth_logo_url || ""}
+                onChange={(e) => handleInputChange("auth_logo_url", e.target.value)}
+                placeholder="https://example.com/logo.png"
+              />
+              <Button 
+                onClick={() => updateSetting("auth_logo_url", settings.auth_logo_url || "")}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+            {settings.auth_logo_url && (
+              <div className="mt-3 p-4 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                <img 
+                  src={settings.auth_logo_url} 
+                  alt="Auth Logo Preview" 
+                  className="h-12 w-auto object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Company Info */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Company Information</h3>

@@ -65,12 +65,14 @@ const AdminUsers = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserUsername, setNewUserUsername] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserFullName, setNewUserFullName] = useState("");
   const [newUserRole, setNewUserRole] = useState("user");
   const [newUserApproved, setNewUserApproved] = useState(true);
   const [creatingUser, setCreatingUser] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [createMode, setCreateMode] = useState<"username" | "email">("username");
   const { toast } = useToast();
   const { isSuperAdmin } = useAuth();
 
@@ -299,8 +301,25 @@ const AdminUsers = () => {
   };
 
   const createUser = async () => {
-    if (!newUserEmail || !newUserPassword) {
-      toast({ title: "Error", description: "Email and password are required", variant: "destructive" });
+    // Determine email based on mode
+    let email = "";
+    if (createMode === "username") {
+      if (!newUserUsername) {
+        toast({ title: "Error", description: "Username is required", variant: "destructive" });
+        return;
+      }
+      // Generate email from username
+      email = `${newUserUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}@krishnatech.internal`;
+    } else {
+      if (!newUserEmail) {
+        toast({ title: "Error", description: "Email is required", variant: "destructive" });
+        return;
+      }
+      email = newUserEmail;
+    }
+
+    if (!newUserPassword) {
+      toast({ title: "Error", description: "Password is required", variant: "destructive" });
       return;
     }
 
@@ -314,9 +333,9 @@ const AdminUsers = () => {
     try {
       const { data, error } = await supabase.functions.invoke("create-user", {
         body: {
-          email: newUserEmail,
+          email: email,
           password: newUserPassword,
-          fullName: newUserFullName,
+          fullName: newUserFullName || (createMode === "username" ? newUserUsername : ""),
           role: newUserRole,
           isApproved: newUserApproved,
         },
@@ -327,13 +346,15 @@ const AdminUsers = () => {
       } else if (data?.error) {
         toast({ title: "Error", description: data.error, variant: "destructive" });
       } else {
-        toast({ title: "Success", description: "User created successfully" });
+        toast({ title: "Success", description: `User created successfully${createMode === "username" ? `. Username: ${newUserUsername}` : ""}` });
         setCreateUserOpen(false);
         setNewUserEmail("");
+        setNewUserUsername("");
         setNewUserPassword("");
         setNewUserFullName("");
         setNewUserRole("user");
         setNewUserApproved(true);
+        setCreateMode("username");
         fetchUsers();
       }
     } catch (err: unknown) {
@@ -780,6 +801,32 @@ const AdminUsers = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Mode Toggle */}
+            <div className="flex bg-muted/50 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => setCreateMode("username")}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  createMode === "username"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Username
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateMode("email")}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  createMode === "email"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Email
+              </button>
+            </div>
+
             <div>
               <label className="text-sm font-medium text-foreground">Full Name</label>
               <Input
@@ -788,16 +835,34 @@ const AdminUsers = () => {
                 placeholder="John Doe"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">Email *</label>
-              <Input
-                type="email"
-                value={newUserEmail}
-                onChange={(e) => setNewUserEmail(e.target.value)}
-                placeholder="user@example.com"
-                required
-              />
-            </div>
+
+            {createMode === "username" ? (
+              <div>
+                <label className="text-sm font-medium text-foreground">Username *</label>
+                <Input
+                  type="text"
+                  value={newUserUsername}
+                  onChange={(e) => setNewUserUsername(e.target.value)}
+                  placeholder="johndoe"
+                  required
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  User will login with this username
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm font-medium text-foreground">Email *</label>
+                <Input
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  required
+                />
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium text-foreground">Password *</label>
               <div className="relative">
@@ -848,17 +913,19 @@ const AdminUsers = () => {
                 onClick={() => {
                   setCreateUserOpen(false);
                   setNewUserEmail("");
+                  setNewUserUsername("");
                   setNewUserPassword("");
                   setNewUserFullName("");
                   setNewUserRole("user");
                   setNewUserApproved(true);
+                  setCreateMode("username");
                 }}
               >
                 Cancel
               </Button>
               <Button
                 onClick={createUser}
-                disabled={creatingUser || !newUserEmail || !newUserPassword || newUserPassword.length < 6}
+                disabled={creatingUser || (createMode === "username" ? !newUserUsername : !newUserEmail) || !newUserPassword || newUserPassword.length < 6}
               >
                 {creatingUser ? "Creating..." : "Create User"}
               </Button>
