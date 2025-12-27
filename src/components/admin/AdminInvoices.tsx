@@ -97,7 +97,7 @@ interface SavedInvoice {
   created_at: string;
 }
 
-type InvoiceTemplate = "modern" | "classic" | "minimal";
+type InvoiceTemplate = "modern" | "classic" | "minimal" | "professional" | "elegant" | "corporate";
 
 interface AdminInvoicesProps {
   preSelectedAppointmentId?: string | null;
@@ -500,6 +500,100 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection, isSuperAdmi
           .footer-box p { font-size: 12px; color: #6b7280; margin: 0; line-height: 1.6; white-space: pre-line; }
           .thank-you { text-align: center; padding: 25px; border-top: 1px solid #e5e7eb; font-size: 13px; font-weight: 500; color: #6b7280; }
         `;
+      case "professional":
+        return `
+          * { box-sizing: border-box; }
+          body { font-family: 'Inter', 'Segoe UI', sans-serif; padding: 0; margin: 0; color: #0f172a; background: #f1f5f9; }
+          .invoice-wrapper { max-width: 800px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); overflow: hidden; }
+          .invoice-header { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; padding: 35px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .company-info h1 { margin: 0 0 10px; font-size: 28px; font-weight: 700; }
+          .company-info p { margin: 3px 0; font-size: 13px; opacity: 0.9; }
+          .invoice-badge { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 20px 25px; text-align: right; border-radius: 10px; }
+          .invoice-badge h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: 3px; opacity: 0.9; }
+          .invoice-badge .invoice-number { font-size: 15px; font-weight: 700; margin-top: 8px; }
+          .invoice-badge .dates { margin-top: 12px; font-size: 12px; opacity: 0.85; }
+          .invoice-body { padding: 35px; }
+          .bill-to-section { margin-bottom: 30px; padding: 20px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #0ea5e9; }
+          .bill-to h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #0ea5e9; margin: 0 0 12px; font-weight: 600; }
+          .bill-to .name { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #0f172a; }
+          .bill-to p { margin: 3px 0; font-size: 13px; color: #64748b; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          .items-table th { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; font-weight: 600; }
+          .items-table th:first-child { border-radius: 8px 0 0 8px; }
+          .items-table th:last-child { border-radius: 0 8px 8px 0; text-align: right; }
+          .items-table td:last-child { text-align: right; }
+          .items-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+          .totals-section { display: flex; justify-content: flex-end; }
+          .totals-box { width: 280px; background: #f8fafc; padding: 20px; border-radius: 10px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #64748b; }
+          .totals-row.total { border-top: 2px solid #0ea5e9; padding-top: 12px; margin-top: 8px; font-size: 20px; font-weight: 700; color: #0ea5e9; }
+          .footer-section { margin-top: 35px; padding-top: 25px; border-top: 1px dashed #e2e8f0; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+          .footer-box h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin: 0 0 10px; font-weight: 600; }
+          .footer-box p { font-size: 12px; color: #64748b; margin: 0; line-height: 1.6; white-space: pre-line; }
+          .thank-you { text-align: center; padding: 25px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); font-size: 14px; font-weight: 600; color: white; }
+        `;
+      case "elegant":
+        return `
+          * { box-sizing: border-box; }
+          body { font-family: 'Playfair Display', 'Georgia', serif; padding: 0; margin: 0; color: #1c1917; background: #faf5f0; }
+          .invoice-wrapper { max-width: 800px; margin: 20px auto; background: #fffbf5; border: 2px solid #d4a574; border-radius: 0; }
+          .invoice-header { background: linear-gradient(135deg, #78350f 0%, #92400e 100%); color: #fef3c7; padding: 35px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .company-info h1 { margin: 0 0 10px; font-size: 30px; font-weight: 700; font-style: italic; }
+          .company-info p { margin: 3px 0; font-size: 13px; font-family: 'Georgia', serif; opacity: 0.9; }
+          .invoice-badge { background: #fef3c7; color: #78350f; padding: 22px 28px; text-align: right; }
+          .invoice-badge h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 4px; font-style: italic; }
+          .invoice-badge .invoice-number { font-size: 14px; font-weight: 600; margin-top: 8px; color: #92400e; }
+          .invoice-badge .dates { margin-top: 12px; font-size: 11px; color: #a16207; }
+          .invoice-body { padding: 35px; }
+          .bill-to-section { margin-bottom: 30px; padding-bottom: 25px; border-bottom: 1px solid #d4a574; }
+          .bill-to h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 3px; color: #92400e; margin: 0 0 12px; font-weight: 600; }
+          .bill-to .name { font-size: 20px; font-weight: 600; margin-bottom: 6px; font-style: italic; color: #78350f; }
+          .bill-to p { margin: 3px 0; font-size: 13px; color: #78716c; font-family: 'Georgia', serif; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          .items-table th { background: #fef3c7; padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #78350f; font-weight: 600; border-top: 2px solid #d4a574; border-bottom: 2px solid #d4a574; }
+          .items-table th:last-child, .items-table td:last-child { text-align: right; }
+          .items-table td { padding: 16px; border-bottom: 1px solid #e7e5e4; font-size: 14px; font-family: 'Georgia', serif; }
+          .totals-section { display: flex; justify-content: flex-end; }
+          .totals-box { width: 270px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #e7e5e4; color: #78716c; }
+          .totals-row.total { border-top: 2px solid #d4a574; border-bottom: none; padding-top: 15px; margin-top: 8px; font-size: 22px; font-weight: 700; color: #78350f; font-style: italic; }
+          .footer-section { margin-top: 35px; padding-top: 25px; border-top: 1px solid #d4a574; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+          .footer-box h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #92400e; margin: 0 0 10px; font-weight: 600; }
+          .footer-box p { font-size: 12px; color: #78716c; margin: 0; line-height: 1.6; white-space: pre-line; font-family: 'Georgia', serif; }
+          .thank-you { text-align: center; padding: 25px; background: linear-gradient(135deg, #78350f 0%, #92400e 100%); font-size: 16px; font-weight: 600; color: #fef3c7; font-style: italic; letter-spacing: 1px; }
+        `;
+      case "corporate":
+        return `
+          * { box-sizing: border-box; }
+          body { font-family: 'Roboto', 'Arial', sans-serif; padding: 0; margin: 0; color: #1e293b; background: #e2e8f0; }
+          .invoice-wrapper { max-width: 800px; margin: 20px auto; background: white; border-radius: 0; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+          .invoice-header { background: #0f172a; color: white; padding: 30px 35px; display: flex; justify-content: space-between; align-items: center; }
+          .company-info h1 { margin: 0 0 8px; font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+          .company-info p { margin: 2px 0; font-size: 12px; opacity: 0.8; }
+          .invoice-badge { background: #f59e0b; color: #0f172a; padding: 18px 24px; text-align: center; }
+          .invoice-badge h2 { margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; }
+          .invoice-badge .invoice-number { font-size: 16px; font-weight: 700; margin-top: 6px; }
+          .invoice-badge .dates { margin-top: 10px; font-size: 11px; color: #78350f; }
+          .invoice-body { padding: 35px; }
+          .bill-to-section { margin-bottom: 30px; display: flex; gap: 30px; }
+          .bill-to { flex: 1; padding: 20px; background: #f8fafc; border-left: 4px solid #f59e0b; }
+          .bill-to h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #f59e0b; margin: 0 0 12px; font-weight: 700; }
+          .bill-to .name { font-size: 17px; font-weight: 700; margin-bottom: 6px; color: #0f172a; }
+          .bill-to p { margin: 2px 0; font-size: 13px; color: #64748b; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          .items-table th { background: #0f172a; color: white; padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+          .items-table th:last-child, .items-table td:last-child { text-align: right; }
+          .items-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+          .items-table tr:nth-child(even) { background: #f8fafc; }
+          .totals-section { display: flex; justify-content: flex-end; }
+          .totals-box { width: 280px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; }
+          .totals-row.total { background: #f59e0b; color: #0f172a; border: none; padding: 15px; margin-top: 10px; font-size: 20px; font-weight: 800; }
+          .footer-section { margin-top: 35px; padding-top: 25px; border-top: 3px solid #0f172a; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+          .footer-box h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #f59e0b; margin: 0 0 10px; font-weight: 700; }
+          .footer-box p { font-size: 12px; color: #64748b; margin: 0; line-height: 1.6; white-space: pre-line; }
+          .thank-you { text-align: center; padding: 20px; background: #0f172a; font-size: 13px; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: 3px; }
+        `;
       default: // modern
         return `
           * { box-sizing: border-box; }
@@ -654,15 +748,42 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection, isSuperAdmi
                 Template: {selectedTemplate.charAt(0).toUpperCase() + selectedTemplate.slice(1)}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent className="w-56">
               <DropdownMenuItem onClick={() => setSelectedTemplate("modern")}>
-                Modern (Dark Header)
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-zinc-900"></span>
+                  Modern (Dark Header)
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSelectedTemplate("classic")}>
-                Classic (Blue Theme)
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-blue-600"></span>
+                  Classic (Blue Theme)
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSelectedTemplate("minimal")}>
-                Minimal (Clean)
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-gray-400"></span>
+                  Minimal (Clean)
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedTemplate("professional")}>
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-sky-500"></span>
+                  Professional (Cyan)
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedTemplate("elegant")}>
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-amber-700"></span>
+                  Elegant (Gold)
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedTemplate("corporate")}>
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-amber-500"></span>
+                  Corporate (Dark + Yellow)
+                </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
