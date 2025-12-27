@@ -1,22 +1,47 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, User, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginMode, setLoginMode] = useState<"username" | "email">("username");
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>("Welcome Back");
   
   const { signIn, signOut, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const hasRedirected = useRef(false);
+
+  // Fetch company logo and name from settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase
+        .from("site_settings")
+        .select("key, value")
+        .in("key", ["auth_logo_url", "company_name"]);
+      
+      if (data) {
+        data.forEach((setting) => {
+          if (setting.key === "auth_logo_url" && setting.value) {
+            setCompanyLogo(setting.value);
+          }
+          if (setting.key === "company_name" && setting.value) {
+            setCompanyName(setting.value);
+          }
+        });
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Redirect logged-in users to appropriate panel
   useEffect(() => {
@@ -57,11 +82,20 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      // If username mode, convert to email format
+      let email = loginId;
+      if (loginMode === "username") {
+        // Check if it's already an email
+        if (!loginId.includes("@")) {
+          email = `${loginId}@krishnatech.internal`;
+        }
+      }
+
       const { error } = await signIn(email, password);
       if (error) {
         toast({
           title: "Login Failed",
-          description: error.message,
+          description: loginMode === "username" ? "Invalid username or password" : error.message,
           variant: "destructive",
         });
       } else {
@@ -113,22 +147,62 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="bg-card rounded-2xl p-8 border border-border shadow-lg">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground mb-2">Welcome Back</h1>
+            {companyLogo ? (
+              <img 
+                src={companyLogo} 
+                alt="Company Logo" 
+                className="h-16 w-auto mx-auto mb-4 object-contain"
+              />
+            ) : null}
+            <h1 className="text-2xl font-bold text-foreground mb-2">{companyName}</h1>
             <p className="text-muted-foreground">Sign in to access your account</p>
+          </div>
+
+          {/* Login Mode Toggle */}
+          <div className="flex mb-6 bg-muted/50 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setLoginMode("username")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                loginMode === "username"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <User className="w-4 h-4" />
+              Username
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode("email")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                loginMode === "email"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              Email
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Email
+                {loginMode === "username" ? "Username" : "Email"}
               </label>
               <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                type={loginMode === "email" ? "email" : "text"}
+                value={loginId}
+                onChange={(e) => setLoginId(e.target.value)}
+                placeholder={loginMode === "username" ? "Enter your username" : "you@example.com"}
                 required
               />
+              {loginMode === "username" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter just your username without @
+                </p>
+              )}
             </div>
 
             <div>
