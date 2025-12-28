@@ -195,6 +195,24 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection, isSuperAdmi
       return;
     }
 
+    // Get all appointment IDs for guest bookings lookup
+    const appointmentIds = data?.map(a => a.id) || [];
+    
+    // Fetch guest bookings for appointments without user_id
+    const { data: guestBookingsData } = appointmentIds.length > 0
+      ? await supabase.from("guest_bookings").select("appointment_id, guest_name, guest_email, guest_phone").in("appointment_id", appointmentIds)
+      : { data: [] as any[] };
+
+    // Create guest bookings map
+    const guestBookingsMap: Record<string, { name: string; email: string; phone: string }> = {};
+    guestBookingsData?.forEach(g => {
+      guestBookingsMap[g.appointment_id] = {
+        name: g.guest_name,
+        email: g.guest_email,
+        phone: g.guest_phone
+      };
+    });
+
     // Fetch user and service details
     const appointmentsWithDetails: Appointment[] = [];
     for (const apt of data || []) {
@@ -208,18 +226,29 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection, isSuperAdmi
           .maybeSingle();
         if (profileData) profile = profileData;
       } else {
-        // Parse guest details from notes for guest bookings
-        const notes = apt.notes || "";
-        const nameMatch = notes.match(/Name=([^,|]+)/i);
-        const emailMatch = notes.match(/Email=([^,|]+)/i);
-        const phoneMatch = notes.match(/Phone=([^,|]+)/i);
-        
-        profile = {
-          full_name: nameMatch ? nameMatch[1].trim() : "Guest",
-          email: emailMatch ? emailMatch[1].trim() : null,
-          phone: phoneMatch ? phoneMatch[1].trim() : null,
-          address: null,
-        };
+        // Check guest_bookings table first for guest bookings
+        const guestData = guestBookingsMap[apt.id];
+        if (guestData) {
+          profile = {
+            full_name: guestData.name,
+            email: guestData.email,
+            phone: guestData.phone,
+            address: null,
+          };
+        } else {
+          // Fallback: Parse guest details from notes for legacy guest bookings
+          const notes = apt.notes || "";
+          const nameMatch = notes.match(/Name=([^,|]+)/i);
+          const emailMatch = notes.match(/Email=([^,|]+)/i);
+          const phoneMatch = notes.match(/Phone=([^,|]+)/i);
+          
+          profile = {
+            full_name: nameMatch ? nameMatch[1].trim() : "Guest",
+            email: emailMatch ? emailMatch[1].trim() : null,
+            phone: phoneMatch ? phoneMatch[1].trim() : null,
+            address: null,
+          };
+        }
       }
 
       const { data: service } = apt.service_id
