@@ -84,11 +84,17 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      let email = loginId.trim();
-      
-      // If not email format, treat as username and convert
+      const rawLoginId = loginId.trim();
+      let email = rawLoginId;
+
+      // If not email format, treat as username and convert to internal email
+      // Must match the exact normalization used when creating users.
       if (!isEmail(email)) {
-        email = `${email}@krishnatech.internal`;
+        const normalizedUsername = rawLoginId
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+
+        email = `${normalizedUsername}@krishnatech.internal`;
       }
 
       const { error } = await signIn(email, password);
@@ -122,12 +128,12 @@ const Auth = () => {
 
           const userRoles = roles?.map(r => r.role) || [];
           const isAdminUser = userRoles.includes("admin") || userRoles.includes("super_admin");
-          
+
           toast({
             title: "Welcome back!",
             description: "You have successfully logged in.",
           });
-          
+
           navigate(isAdminUser ? "/admin" : "/dashboard");
         }
       }
