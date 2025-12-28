@@ -263,25 +263,29 @@ const AdminInvoices = ({ preSelectedAppointmentId, onClearSelection, isSuperAdmi
     const nextYear = (year + 1).toString().slice(-2);
     const currentYear = year.toString().slice(-2);
     const prefix = `Inv-${currentYear}-${nextYear}/KTS`;
-    
-    // Get the latest invoice number with this prefix to determine serial
-    const { data: latestInvoice } = await supabase
+
+    // Get ALL existing invoice numbers with this prefix to find gaps
+    const { data: existingInvoices } = await supabase
       .from("invoices")
       .select("invoice_number")
-      .ilike("invoice_number", `${prefix}-%`)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    let serialNumber = 1;
-    if (latestInvoice?.invoice_number) {
-      const match = latestInvoice.invoice_number.match(/-(\d{3})$/);
+      .ilike("invoice_number", `${prefix}-%`);
+
+    // Extract all used serial numbers
+    const usedNumbers = new Set<number>();
+    existingInvoices?.forEach((inv) => {
+      const match = inv.invoice_number.match(/-(\d{3})$/);
       if (match) {
-        serialNumber = parseInt(match[1]) + 1;
+        usedNumbers.add(parseInt(match[1]));
       }
+    });
+
+    // Find the first available number (starting from 1)
+    let serialNumber = 1;
+    while (usedNumbers.has(serialNumber)) {
+      serialNumber++;
     }
-    
-    return `${prefix}-${serialNumber.toString().padStart(3, '0')}`;
+
+    return `${prefix}-${serialNumber.toString().padStart(3, "0")}`;
   };
 
   // Parse discount from appointment notes
