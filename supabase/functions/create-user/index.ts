@@ -30,19 +30,14 @@ function isRateLimited(identifier: string): boolean {
 
 // Input validation helpers
 function isValidEmail(email: string): boolean {
+  // Allow internal emails and standard emails
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email) && email.length <= 255;
 }
 
 function isValidPassword(password: string): boolean {
-  // Minimum 8 characters with at least one uppercase, lowercase, and number
-  return (
-    password.length >= 8 &&
-    password.length <= 128 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password)
-  );
+  // Minimum 6 characters for user-created accounts
+  return password.length >= 6 && password.length <= 128;
 }
 
 function sanitizeInput(input: string, maxLength: number = 100): string {
@@ -124,7 +119,7 @@ serve(async (req) => {
     }
 
     if (!isValidPassword(password)) {
-      return new Response(JSON.stringify({ error: "Password must be at least 8 characters with uppercase, lowercase, and a number" }), {
+      return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
