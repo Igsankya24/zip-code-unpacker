@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Save, ExternalLink } from "lucide-react";
+import EditableSectionHeader from "./EditableSectionHeader";
 import {
   Select,
   SelectContent,
@@ -75,7 +76,11 @@ const AdminSettings = () => {
 
       {/* Appointment Slot Settings */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Appointment Slots</h3>
+        <EditableSectionHeader
+          title={settings.section_appointment_slots || "Appointment Slots"}
+          settingKey="section_appointment_slots"
+          onSave={updateSetting}
+        />
         <p className="text-sm text-muted-foreground">Configure time slots for bookings. Only one appointment is allowed per slot.</p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -146,7 +151,11 @@ const AdminSettings = () => {
 
       {/* Session & Security Settings */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Session & Security</h3>
+        <EditableSectionHeader
+          title={settings.section_session_security || "Session & Security"}
+          settingKey="section_session_security"
+          onSave={updateSetting}
+        />
         
         <div>
           <label className="block text-sm font-medium mb-2">Auto Logout (Idle Timeout)</label>
@@ -179,7 +188,11 @@ const AdminSettings = () => {
 
       {/* Maintenance Mode */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Site Status</h3>
+        <EditableSectionHeader
+          title={settings.section_site_status || "Site Status"}
+          settingKey="section_site_status"
+          onSave={updateSetting}
+        />
         <div className="flex items-center justify-between">
           <div>
             <p className="font-medium text-foreground">Maintenance Mode</p>
@@ -197,7 +210,11 @@ const AdminSettings = () => {
 
       {/* Social Links */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Social Links</h3>
+        <EditableSectionHeader
+          title={settings.section_social_links || "Social Links"}
+          settingKey="section_social_links"
+          onSave={updateSetting}
+        />
         
         <div className="space-y-4">
           <div>
@@ -279,7 +296,11 @@ const AdminSettings = () => {
 
       {/* Contact Information */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Contact Information</h3>
+        <EditableSectionHeader
+          title={settings.section_contact_info || "Contact Information"}
+          settingKey="section_contact_info"
+          onSave={updateSetting}
+        />
         
         <div className="space-y-4">
           <div>
@@ -406,7 +427,11 @@ const AdminSettings = () => {
 
       {/* Auth Page Branding */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Auth Page Branding</h3>
+        <EditableSectionHeader
+          title={settings.section_auth_branding || "Auth Page Branding"}
+          settingKey="section_auth_branding"
+          onSave={updateSetting}
+        />
         <p className="text-sm text-muted-foreground">Configure logo and branding for the login page</p>
         
         <div className="space-y-4">
@@ -444,7 +469,11 @@ const AdminSettings = () => {
 
       {/* Company Info */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Company Information</h3>
+        <EditableSectionHeader
+          title={settings.section_company_info || "Company Information"}
+          settingKey="section_company_info"
+          onSave={updateSetting}
+        />
         
         <div className="space-y-4">
           <div>
@@ -520,7 +549,11 @@ const AdminSettings = () => {
 
       {/* Homepage Stats */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Homepage Statistics</h3>
+        <EditableSectionHeader
+          title={settings.section_homepage_stats || "Homepage Statistics"}
+          settingKey="section_homepage_stats"
+          onSave={updateSetting}
+        />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -659,7 +692,11 @@ const AdminSettings = () => {
 
       {/* Footer Content */}
       <div className="bg-card rounded-xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Footer Content</h3>
+        <EditableSectionHeader
+          title={settings.section_footer_content || "Footer Content"}
+          settingKey="section_footer_content"
+          onSave={updateSetting}
+        />
         
         <div className="space-y-4">
           <div>
