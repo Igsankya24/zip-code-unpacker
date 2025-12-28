@@ -1,20 +1,32 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Key, ExternalLink, AlertTriangle } from "lucide-react";
+import { Key, ExternalLink, AlertTriangle, Copy, Eye, EyeOff, Database, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 
 // This component now provides guidance on secure secret management
 // Actual API keys should be stored as Supabase Edge Function secrets (environment variables)
 // NOT in database tables accessible via the client SDK
 
-const AdminApiKeys = () => {
+interface AdminApiKeysProps {
+  isSuperAdmin?: boolean;
+}
+
+const AdminApiKeys = ({ isSuperAdmin = false }: AdminApiKeysProps) => {
   const { toast } = useToast();
+  const [showProjectUrl, setShowProjectUrl] = useState(false);
+  const [showAnonKey, setShowAnonKey] = useState(false);
+
+  // Supabase credentials from environment
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+  const supabaseProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "";
 
   const suggestedApiKeys = [
     {
@@ -75,6 +87,19 @@ const AdminApiKeys = () => {
     });
   };
 
+  const handleCopyValue = (value: string, label: string) => {
+    navigator.clipboard.writeText(value);
+    toast({ 
+      title: "Copied!", 
+      description: `${label} copied to clipboard` 
+    });
+  };
+
+  const maskValue = (value: string) => {
+    if (value.length <= 12) return "••••••••••••";
+    return value.substring(0, 8) + "••••••••••••" + value.substring(value.length - 4);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -85,6 +110,120 @@ const AdminApiKeys = () => {
           </p>
         </div>
       </div>
+
+      {/* Supabase Credentials - Super Admin Only */}
+      {isSuperAdmin && (
+        <div className="bg-card rounded-xl border border-primary/20 p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold text-foreground">Lovable Cloud Credentials</h3>
+            <Badge variant="outline" className="ml-2 text-xs">
+              <Shield className="w-3 h-3 mr-1" />
+              Super Admin Only
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            These are your project's backend credentials. Keep them secure and never share them publicly.
+          </p>
+          
+          <div className="space-y-3">
+            {/* Project ID */}
+            <div className="p-3 rounded-lg border border-border bg-muted/30">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">Project ID</p>
+                  <p className="text-xs text-muted-foreground font-mono truncate">
+                    {supabaseProjectId || "Not configured"}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCopyValue(supabaseProjectId, "Project ID")}
+                  disabled={!supabaseProjectId}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Project URL */}
+            <div className="p-3 rounded-lg border border-border bg-muted/30">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">Project URL</p>
+                  <p className="text-xs text-muted-foreground font-mono truncate">
+                    {showProjectUrl ? supabaseUrl : maskValue(supabaseUrl)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowProjectUrl(!showProjectUrl)}
+                  >
+                    {showProjectUrl ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyValue(supabaseUrl, "Project URL")}
+                    disabled={!supabaseUrl}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Anon Key (Publishable) */}
+            <div className="p-3 rounded-lg border border-border bg-muted/30">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm">Anon Key</p>
+                    <Badge variant="secondary" className="text-[10px]">Publishable</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono truncate">
+                    {showAnonKey ? supabaseAnonKey : maskValue(supabaseAnonKey)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAnonKey(!showAnonKey)}
+                  >
+                    {showAnonKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyValue(supabaseAnonKey, "Anon Key")}
+                    disabled={!supabaseAnonKey}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Service Role Key - Note */}
+            <div className="p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-sm">Service Role Key</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    The Service Role Key is stored securely in Cloud secrets and is only accessible in Edge Functions. 
+                    It bypasses RLS and should never be exposed client-side.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Security Information */}
       <Alert>

@@ -752,7 +752,7 @@ const Admin = () => {
       case "technicians":
         return <AdminTechnicians />;
       case "api-keys":
-        return isSuperAdmin ? <AdminApiKeys /> : null;
+        return <AdminApiKeys isSuperAdmin={isSuperAdmin} />;
       case "users":
         return <AdminUsers />;
       case "coupons":
