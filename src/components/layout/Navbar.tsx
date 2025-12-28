@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,10 +14,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+interface Settings {
+  [key: string]: string;
+}
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [s, setS] = useState<Settings>({});
   const location = useLocation();
   const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase.from("site_settings").select("key, value");
+      if (data) {
+        const settingsObj: Settings = {};
+        data.forEach((item) => { settingsObj[item.key] = item.value; });
+        setS(settingsObj);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -37,10 +55,10 @@ const Navbar = () => {
             </div>
             <div className="flex flex-col">
               <span className="font-display font-bold text-lg text-foreground leading-tight">
-                Krishna Tech
+                {s.navbar_company_name || "Krishna Tech"}
               </span>
               <span className="text-xs text-muted-foreground -mt-0.5">
-                Solutions
+                {s.navbar_company_tagline || "Solutions"}
               </span>
             </div>
           </Link>
@@ -51,9 +69,7 @@ const Navbar = () => {
                 key={link.path}
                 to={link.path}
                 className={`relative font-medium transition-colors duration-300 ${
-                  isActive(link.path)
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                  isActive(link.path) ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {link.name}
@@ -65,7 +81,7 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <ThemeToggle />
+            {s.navbar_show_theme !== "false" && <ThemeToggle />}
             {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -82,26 +98,20 @@ const Navbar = () => {
                     <p className="text-sm font-medium truncate">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => signOut()} 
-                    className="text-destructive cursor-pointer"
-                  >
+                  <DropdownMenuItem onClick={() => signOut()} className="text-destructive cursor-pointer">
                     Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Link to="/contact">
+            <Link to={s.navbar_cta_link || "/contact"}>
               <Button variant="hero" size="default">
-                Get Support
+                {s.navbar_cta_text || "Get Support"}
               </Button>
             </Link>
           </div>
 
-          <button
-            className="md:hidden p-2 text-foreground"
-            onClick={() => setIsOpen(!isOpen)}
-          >
+          <button className="md:hidden p-2 text-foreground" onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
@@ -116,26 +126,20 @@ const Navbar = () => {
                 to={link.path}
                 onClick={() => setIsOpen(false)}
                 className={`py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
-                  isActive(link.path)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  isActive(link.path) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 {link.name}
               </Link>
             ))}
             {user && (
-              <Button 
-                variant="ghost" 
-                className="w-full text-destructive" 
-                onClick={() => { signOut(); setIsOpen(false); }}
-              >
+              <Button variant="ghost" className="w-full text-destructive" onClick={() => { signOut(); setIsOpen(false); }}>
                 Sign Out
               </Button>
             )}
-            <Link to="/contact" onClick={() => setIsOpen(false)}>
+            <Link to={s.navbar_cta_link || "/contact"} onClick={() => setIsOpen(false)}>
               <Button variant="hero" className="w-full mt-2">
-                Get Support
+                {s.navbar_cta_text || "Get Support"}
               </Button>
             </Link>
           </div>

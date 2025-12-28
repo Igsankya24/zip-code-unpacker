@@ -8,12 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Globe, Palette, Phone, Mail, MapPin, Clock, Image, Type, FileText, Plus, Trash2 } from "lucide-react";
-
-interface SiteSetting {
-  key: string;
-  value: string;
-}
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Save, Globe, Palette, Phone, Mail, MapPin, Clock, Type, Home, Info, FileText, Navigation, LayoutGrid } from "lucide-react";
 
 const AdminCustomization = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -27,10 +23,7 @@ const AdminCustomization = () => {
 
   const fetchSettings = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("site_settings")
-      .select("key, value");
-
+    const { data } = await supabase.from("site_settings").select("key, value");
     if (data) {
       const settingsMap: Record<string, string> = {};
       data.forEach((s) => {
@@ -45,33 +38,12 @@ const AdminCustomization = () => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const saveSetting = async (key: string, value: string) => {
-    setSaving(true);
-    const { error } = await supabase
-      .from("site_settings")
-      .upsert({ key, value }, { onConflict: "key" });
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to save setting", variant: "destructive" });
-    } else {
-      toast({ title: "Saved", description: `${key} updated successfully` });
-    }
-    setSaving(false);
-  };
-
   const saveAllSettings = async () => {
     setSaving(true);
-    const upsertData = Object.entries(settings).map(([key, value]) => ({
-      key,
-      value,
-    }));
-
+    const upsertData = Object.entries(settings).map(([key, value]) => ({ key, value }));
     for (const item of upsertData) {
-      await supabase
-        .from("site_settings")
-        .upsert({ key: item.key, value: item.value }, { onConflict: "key" });
+      await supabase.from("site_settings").upsert({ key: item.key, value: item.value }, { onConflict: "key" });
     }
-
     toast({ title: "Success", description: "All settings saved successfully" });
     setSaving(false);
   };
@@ -97,17 +69,674 @@ const AdminCustomization = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="typography">Typography</TabsTrigger>
-          <TabsTrigger value="contact">Contact</TabsTrigger>
-          <TabsTrigger value="homepage">Homepage</TabsTrigger>
-          <TabsTrigger value="navbar">Navbar</TabsTrigger>
-          <TabsTrigger value="footer">Footer</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
+      <Tabs defaultValue="homepage" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+          <TabsTrigger value="homepage"><Home className="w-4 h-4 mr-1" />Home</TabsTrigger>
+          <TabsTrigger value="about"><Info className="w-4 h-4 mr-1" />About</TabsTrigger>
+          <TabsTrigger value="contact"><Phone className="w-4 h-4 mr-1" />Contact</TabsTrigger>
+          <TabsTrigger value="navbar"><Navigation className="w-4 h-4 mr-1" />Navbar</TabsTrigger>
+          <TabsTrigger value="footer"><LayoutGrid className="w-4 h-4 mr-1" />Footer</TabsTrigger>
+          <TabsTrigger value="general"><Globe className="w-4 h-4 mr-1" />General</TabsTrigger>
         </TabsList>
+
+        {/* Homepage Sections */}
+        <TabsContent value="homepage" className="space-y-4">
+          <Accordion type="multiple" defaultValue={["hero", "stats", "services", "whyus", "cta"]} className="space-y-4">
+            {/* Hero Section */}
+            <AccordionItem value="hero" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Hero Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Hero Badge Text</Label>
+                  <Input
+                    value={settings.hero_badge || "Trusted Tech Solutions Since 2019"}
+                    onChange={(e) => updateSetting("hero_badge", e.target.value)}
+                    placeholder="Trusted Tech Solutions Since 2019"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Hero Title (Line 1)</Label>
+                  <Input
+                    value={settings.hero_title_1 || "Your Data is"}
+                    onChange={(e) => updateSetting("hero_title_1", e.target.value)}
+                    placeholder="Your Data is"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Hero Title (Highlighted Text)</Label>
+                  <Input
+                    value={settings.hero_title_highlight || "Precious"}
+                    onChange={(e) => updateSetting("hero_title_highlight", e.target.value)}
+                    placeholder="Precious"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Hero Title (Line 2)</Label>
+                  <Input
+                    value={settings.hero_title_2 || "We Recover It"}
+                    onChange={(e) => updateSetting("hero_title_2", e.target.value)}
+                    placeholder="We Recover It"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Hero Description</Label>
+                  <Textarea
+                    value={settings.hero_description || "Professional data recovery, Windows services, and computer repairs. Expert solutions with no data loss guarantee."}
+                    onChange={(e) => updateSetting("hero_description", e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Primary Button Text</Label>
+                    <Input
+                      value={settings.hero_btn1_text || "Get Free Consultation"}
+                      onChange={(e) => updateSetting("hero_btn1_text", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Primary Button Link</Label>
+                    <Input
+                      value={settings.hero_btn1_link || "/contact"}
+                      onChange={(e) => updateSetting("hero_btn1_link", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Secondary Button Text</Label>
+                    <Input
+                      value={settings.hero_btn2_text || "View Services"}
+                      onChange={(e) => updateSetting("hero_btn2_text", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Secondary Button Link</Label>
+                    <Input
+                      value={settings.hero_btn2_link || "/services"}
+                      onChange={(e) => updateSetting("hero_btn2_link", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Stats Section */}
+            <AccordionItem value="stats" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Statistics Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Stat 1 Value</Label>
+                    <Input value={settings.stat_1_value || "10K+"} onChange={(e) => updateSetting("stat_1_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stat 1 Label</Label>
+                    <Input value={settings.stat_1_label || "Happy Customers"} onChange={(e) => updateSetting("stat_1_label", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stat 2 Value</Label>
+                    <Input value={settings.stat_2_value || "95%"} onChange={(e) => updateSetting("stat_2_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stat 2 Label</Label>
+                    <Input value={settings.stat_2_label || "Recovery Rate"} onChange={(e) => updateSetting("stat_2_label", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stat 3 Value</Label>
+                    <Input value={settings.stat_3_value || "5+"} onChange={(e) => updateSetting("stat_3_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stat 3 Label</Label>
+                    <Input value={settings.stat_3_label || "Years Experience"} onChange={(e) => updateSetting("stat_3_label", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stat 4 Value</Label>
+                    <Input value={settings.stat_4_value || "24/7"} onChange={(e) => updateSetting("stat_4_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stat 4 Label</Label>
+                    <Input value={settings.stat_4_label || "Support Available"} onChange={(e) => updateSetting("stat_4_label", e.target.value)} />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Services Section */}
+            <AccordionItem value="services" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Services Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Section Badge</Label>
+                  <Input value={settings.home_services_badge || "Our Services"} onChange={(e) => updateSetting("home_services_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Title</Label>
+                  <Input value={settings.home_services_title || "What We Offer"} onChange={(e) => updateSetting("home_services_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Description</Label>
+                  <Textarea
+                    value={settings.home_services_desc || "Comprehensive tech solutions for all your computer needs. From data recovery to system upgrades, we've got you covered."}
+                    onChange={(e) => updateSetting("home_services_desc", e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>View All Button Text</Label>
+                  <Input value={settings.home_services_btn || "View All Services"} onChange={(e) => updateSetting("home_services_btn", e.target.value)} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Why Choose Us Section */}
+            <AccordionItem value="whyus" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Why Choose Us Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Section Badge</Label>
+                  <Input value={settings.whyus_badge || "Why Choose Us"} onChange={(e) => updateSetting("whyus_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Title</Label>
+                  <Input value={settings.whyus_title || "Trusted by Thousands of Customers"} onChange={(e) => updateSetting("whyus_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Description</Label>
+                  <Textarea
+                    value={settings.whyus_description || "At Krishna Tech Solutions, we combine expertise with cutting-edge technology to deliver exceptional results. Your satisfaction is our mission."}
+                    onChange={(e) => updateSetting("whyus_description", e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="grid gap-4">
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Feature 1</Label>
+                    <Input value={settings.whyus_feature1_title || "100% Data Safety"} onChange={(e) => updateSetting("whyus_feature1_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.whyus_feature1_desc || "Your data security is our top priority. We follow strict protocols."} onChange={(e) => updateSetting("whyus_feature1_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Feature 2</Label>
+                    <Input value={settings.whyus_feature2_title || "Fast Turnaround"} onChange={(e) => updateSetting("whyus_feature2_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.whyus_feature2_desc || "Most services completed within 24-48 hours."} onChange={(e) => updateSetting("whyus_feature2_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Feature 3</Label>
+                    <Input value={settings.whyus_feature3_title || "Expert Technicians"} onChange={(e) => updateSetting("whyus_feature3_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.whyus_feature3_desc || "Certified professionals with years of experience."} onChange={(e) => updateSetting("whyus_feature3_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Quick Contact Title</Label>
+                  <Input value={settings.whyus_contact_title || "Quick Contact"} onChange={(e) => updateSetting("whyus_contact_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Working Hours Text</Label>
+                  <Input value={settings.whyus_working_hours || "Mon-Sat: 9AM - 8PM"} onChange={(e) => updateSetting("whyus_working_hours", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Book Appointment Button Text</Label>
+                  <Input value={settings.whyus_btn_text || "Book Appointment"} onChange={(e) => updateSetting("whyus_btn_text", e.target.value)} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* CTA Section */}
+            <AccordionItem value="cta" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">CTA Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>CTA Title (Line 1)</Label>
+                  <Input value={settings.cta_title_1 || "Lost Your Data?"} onChange={(e) => updateSetting("cta_title_1", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>CTA Title (Highlighted)</Label>
+                  <Input value={settings.cta_title_highlight || "We Can Help!"} onChange={(e) => updateSetting("cta_title_highlight", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>CTA Description</Label>
+                  <Textarea
+                    value={settings.cta_description || "Don't panic! Contact us immediately for a free consultation. Our experts are ready to recover your valuable data."}
+                    onChange={(e) => updateSetting("cta_description", e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>CTA Button Text</Label>
+                    <Input value={settings.cta_btn_text || "Contact Us Now"} onChange={(e) => updateSetting("cta_btn_text", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CTA Button Link</Label>
+                    <Input value={settings.cta_btn_link || "/contact"} onChange={(e) => updateSetting("cta_btn_link", e.target.value)} />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </TabsContent>
+
+        {/* About Page Sections */}
+        <TabsContent value="about" className="space-y-4">
+          <Accordion type="multiple" defaultValue={["about-hero", "about-story", "about-values", "about-timeline", "about-cta"]} className="space-y-4">
+            {/* About Hero */}
+            <AccordionItem value="about-hero" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Hero Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Badge Text</Label>
+                  <Input value={settings.about_hero_badge || "About Us"} onChange={(e) => updateSetting("about_hero_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Title (Line 1)</Label>
+                  <Input value={settings.about_hero_title1 || "Your Trusted"} onChange={(e) => updateSetting("about_hero_title1", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Title (Highlighted)</Label>
+                  <Input value={settings.about_hero_highlight || "Tech Partner"} onChange={(e) => updateSetting("about_hero_highlight", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={settings.about_hero_desc || "Krishna Tech Solutions has been providing reliable tech services since 2019. We're passionate about solving technology problems."}
+                    onChange={(e) => updateSetting("about_hero_desc", e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Our Story */}
+            <AccordionItem value="about-story" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Our Story Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Section Badge</Label>
+                  <Input value={settings.about_story_badge || "Our Story"} onChange={(e) => updateSetting("about_story_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Title</Label>
+                  <Input value={settings.about_story_title || "From Passion to Profession"} onChange={(e) => updateSetting("about_story_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Story Paragraph 1</Label>
+                  <Textarea value={settings.about_story_p1 || "Krishna Tech Solutions was founded in 2019 with a simple mission: to provide honest, reliable, and affordable tech solutions to individuals and small businesses."} onChange={(e) => updateSetting("about_story_p1", e.target.value)} rows={2} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Story Paragraph 2</Label>
+                  <Textarea value={settings.about_story_p2 || "What started as a small data recovery service has grown into a comprehensive tech solutions provider. Our founder's passion for helping people recover their precious data led to the creation of this company."} onChange={(e) => updateSetting("about_story_p2", e.target.value)} rows={2} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Story Paragraph 3</Label>
+                  <Textarea value={settings.about_story_p3 || "Today, we serve over 10,000 satisfied customers and continue to expand our services to meet the evolving needs of our community."} onChange={(e) => updateSetting("about_story_p3", e.target.value)} rows={2} />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Story Stat 1 Value</Label>
+                    <Input value={settings.about_stat1_value || "10K+"} onChange={(e) => updateSetting("about_stat1_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Story Stat 1 Label</Label>
+                    <Input value={settings.about_stat1_label || "Happy Customers"} onChange={(e) => updateSetting("about_stat1_label", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Story Stat 2 Value</Label>
+                    <Input value={settings.about_stat2_value || "95%"} onChange={(e) => updateSetting("about_stat2_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Story Stat 2 Label</Label>
+                    <Input value={settings.about_stat2_label || "Recovery Rate"} onChange={(e) => updateSetting("about_stat2_label", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Story Stat 3 Value</Label>
+                    <Input value={settings.about_stat3_value || "5+"} onChange={(e) => updateSetting("about_stat3_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Story Stat 3 Label</Label>
+                    <Input value={settings.about_stat3_label || "Years Experience"} onChange={(e) => updateSetting("about_stat3_label", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Story Stat 4 Value</Label>
+                    <Input value={settings.about_stat4_value || "50+"} onChange={(e) => updateSetting("about_stat4_value", e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Story Stat 4 Label</Label>
+                    <Input value={settings.about_stat4_label || "Services Offered"} onChange={(e) => updateSetting("about_stat4_label", e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Mission Title</Label>
+                  <Input value={settings.about_mission_title || "Our Mission"} onChange={(e) => updateSetting("about_mission_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Mission Description</Label>
+                  <Textarea value={settings.about_mission_desc || "To provide accessible, affordable, and reliable tech solutions that empower our customers to make the most of their technology without the fear of data loss or system failures."} onChange={(e) => updateSetting("about_mission_desc", e.target.value)} rows={2} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Mission Points (comma separated)</Label>
+                  <Textarea value={settings.about_mission_points || "Recover data that others say is lost forever,Upgrade systems without losing a single file,Provide transparent pricing with no hidden costs,Deliver exceptional customer service always"} onChange={(e) => updateSetting("about_mission_points", e.target.value)} rows={3} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Values */}
+            <AccordionItem value="about-values" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Values Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Section Badge</Label>
+                  <Input value={settings.about_values_badge || "Our Values"} onChange={(e) => updateSetting("about_values_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Title</Label>
+                  <Input value={settings.about_values_title || "What Drives Us"} onChange={(e) => updateSetting("about_values_title", e.target.value)} />
+                </div>
+                <div className="grid gap-4">
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Value 1</Label>
+                    <Input value={settings.about_value1_title || "Customer First"} onChange={(e) => updateSetting("about_value1_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_value1_desc || "Your satisfaction is our priority. We go above and beyond to exceed expectations."} onChange={(e) => updateSetting("about_value1_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Value 2</Label>
+                    <Input value={settings.about_value2_title || "Excellence"} onChange={(e) => updateSetting("about_value2_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_value2_desc || "We maintain the highest standards in every service we provide."} onChange={(e) => updateSetting("about_value2_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Value 3</Label>
+                    <Input value={settings.about_value3_title || "Expertise"} onChange={(e) => updateSetting("about_value3_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_value3_desc || "Our team consists of certified professionals with years of experience."} onChange={(e) => updateSetting("about_value3_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Value 4</Label>
+                    <Input value={settings.about_value4_title || "Integrity"} onChange={(e) => updateSetting("about_value4_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_value4_desc || "We operate with complete transparency and honesty in all dealings."} onChange={(e) => updateSetting("about_value4_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Timeline */}
+            <AccordionItem value="about-timeline" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Timeline Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Section Badge</Label>
+                  <Input value={settings.about_timeline_badge || "Our Journey"} onChange={(e) => updateSetting("about_timeline_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Title</Label>
+                  <Input value={settings.about_timeline_title || "Key Milestones"} onChange={(e) => updateSetting("about_timeline_title", e.target.value)} />
+                </div>
+                <div className="grid gap-4">
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Milestone 1</Label>
+                    <Input value={settings.about_milestone1_year || "2019"} onChange={(e) => updateSetting("about_milestone1_year", e.target.value)} placeholder="Year" />
+                    <Input value={settings.about_milestone1_title || "Founded"} onChange={(e) => updateSetting("about_milestone1_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_milestone1_desc || "Started our journey in tech solutions"} onChange={(e) => updateSetting("about_milestone1_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Milestone 2</Label>
+                    <Input value={settings.about_milestone2_year || "2020"} onChange={(e) => updateSetting("about_milestone2_year", e.target.value)} placeholder="Year" />
+                    <Input value={settings.about_milestone2_title || "1000+ Customers"} onChange={(e) => updateSetting("about_milestone2_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_milestone2_desc || "Reached our first major milestone"} onChange={(e) => updateSetting("about_milestone2_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Milestone 3</Label>
+                    <Input value={settings.about_milestone3_year || "2022"} onChange={(e) => updateSetting("about_milestone3_year", e.target.value)} placeholder="Year" />
+                    <Input value={settings.about_milestone3_title || "Expanded Services"} onChange={(e) => updateSetting("about_milestone3_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_milestone3_desc || "Added new service categories"} onChange={(e) => updateSetting("about_milestone3_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <Label className="font-semibold">Milestone 4</Label>
+                    <Input value={settings.about_milestone4_year || "2024"} onChange={(e) => updateSetting("about_milestone4_year", e.target.value)} placeholder="Year" />
+                    <Input value={settings.about_milestone4_title || "10000+ Customers"} onChange={(e) => updateSetting("about_milestone4_title", e.target.value)} placeholder="Title" />
+                    <Input value={settings.about_milestone4_desc || "Trusted by thousands"} onChange={(e) => updateSetting("about_milestone4_desc", e.target.value)} placeholder="Description" />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* About CTA */}
+            <AccordionItem value="about-cta" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">CTA Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>CTA Title</Label>
+                  <Input value={settings.about_cta_title || "Ready to Work With Us?"} onChange={(e) => updateSetting("about_cta_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>CTA Description</Label>
+                  <Input value={settings.about_cta_desc || "Let's solve your tech challenges together. Contact us today!"} onChange={(e) => updateSetting("about_cta_desc", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>CTA Button Text</Label>
+                  <Input value={settings.about_cta_btn || "Get in Touch"} onChange={(e) => updateSetting("about_cta_btn", e.target.value)} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </TabsContent>
+
+        {/* Contact Page */}
+        <TabsContent value="contact" className="space-y-4">
+          <Accordion type="multiple" defaultValue={["contact-hero", "contact-info", "contact-form", "contact-cta"]} className="space-y-4">
+            {/* Contact Hero */}
+            <AccordionItem value="contact-hero" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Hero Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Badge Text</Label>
+                  <Input value={settings.contact_hero_badge || "Contact Us"} onChange={(e) => updateSetting("contact_hero_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Title (Line 1)</Label>
+                  <Input value={settings.contact_hero_title1 || "Get in"} onChange={(e) => updateSetting("contact_hero_title1", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Title (Highlighted)</Label>
+                  <Input value={settings.contact_hero_highlight || "Touch"} onChange={(e) => updateSetting("contact_hero_highlight", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={settings.contact_hero_desc || "Have a question or need our services? We're here to help! Reach out to us and we'll respond within 24 hours."}
+                    onChange={(e) => updateSetting("contact_hero_desc", e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Contact Info */}
+            <AccordionItem value="contact-info" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Contact Information</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label><Phone className="w-4 h-4 inline mr-2" />Primary Phone</Label>
+                    <Input value={settings.contact_phone || ""} onChange={(e) => updateSetting("contact_phone", e.target.value)} placeholder="+91 7026292525" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label><Phone className="w-4 h-4 inline mr-2" />Secondary Phone</Label>
+                    <Input value={settings.contact_phone_2 || ""} onChange={(e) => updateSetting("contact_phone_2", e.target.value)} placeholder="+91 9876543210" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label><Mail className="w-4 h-4 inline mr-2" />Primary Email</Label>
+                    <Input value={settings.contact_email || ""} onChange={(e) => updateSetting("contact_email", e.target.value)} placeholder="info@example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label><Mail className="w-4 h-4 inline mr-2" />Secondary Email</Label>
+                    <Input value={settings.contact_email_2 || ""} onChange={(e) => updateSetting("contact_email_2", e.target.value)} placeholder="support@example.com" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label><MapPin className="w-4 h-4 inline mr-2" />Address</Label>
+                  <Textarea value={settings.contact_address || ""} onChange={(e) => updateSetting("contact_address", e.target.value)} placeholder="Your business address" rows={2} />
+                </div>
+                <div className="space-y-2">
+                  <Label><Clock className="w-4 h-4 inline mr-2" />Business Hours</Label>
+                  <Input value={settings.business_hours || ""} onChange={(e) => updateSetting("business_hours", e.target.value)} placeholder="Monday - Saturday, 9:00 AM - 8:00 PM" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Google Maps Embed URL</Label>
+                  <Input value={settings.google_maps_url || ""} onChange={(e) => updateSetting("google_maps_url", e.target.value)} placeholder="https://www.google.com/maps/embed?..." />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Contact Form */}
+            <AccordionItem value="contact-form" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Contact Form</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Form Title</Label>
+                  <Input value={settings.contact_form_title || "Send a Message"} onChange={(e) => updateSetting("contact_form_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Form Subtitle</Label>
+                  <Input value={settings.contact_form_subtitle || "Fill out the form and we'll get back to you"} onChange={(e) => updateSetting("contact_form_subtitle", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Submit Button Text</Label>
+                  <Input value={settings.contact_form_btn || "Send Message"} onChange={(e) => updateSetting("contact_form_btn", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact Info Title</Label>
+                  <Input value={settings.contact_info_title || "Contact Information"} onChange={(e) => updateSetting("contact_info_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact Info Subtitle</Label>
+                  <Input value={settings.contact_info_subtitle || "Reach out to us through any of these channels. We're always happy to help!"} onChange={(e) => updateSetting("contact_info_subtitle", e.target.value)} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Contact CTA */}
+            <AccordionItem value="contact-cta" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">CTA Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>CTA Title</Label>
+                  <Input value={settings.contact_cta_title || "Need Immediate Assistance?"} onChange={(e) => updateSetting("contact_cta_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>CTA Subtitle</Label>
+                  <Input value={settings.contact_cta_subtitle || "Call us directly for urgent tech support."} onChange={(e) => updateSetting("contact_cta_subtitle", e.target.value)} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          {/* Social Media Links */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Social Media Links</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Facebook</Label>
+                <Input value={settings.facebook_link || ""} onChange={(e) => updateSetting("facebook_link", e.target.value)} placeholder="https://facebook.com/..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Instagram</Label>
+                <Input value={settings.instagram_link || ""} onChange={(e) => updateSetting("instagram_link", e.target.value)} placeholder="https://instagram.com/..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Twitter/X</Label>
+                <Input value={settings.twitter_link || ""} onChange={(e) => updateSetting("twitter_link", e.target.value)} placeholder="https://twitter.com/..." />
+              </div>
+              <div className="space-y-2">
+                <Label>LinkedIn</Label>
+                <Input value={settings.linkedin_link || ""} onChange={(e) => updateSetting("linkedin_link", e.target.value)} placeholder="https://linkedin.com/..." />
+              </div>
+              <div className="space-y-2">
+                <Label>WhatsApp Number</Label>
+                <Input value={settings.bot_whatsapp_number || ""} onChange={(e) => updateSetting("bot_whatsapp_number", e.target.value)} placeholder="+91 7026292525" />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Navbar */}
+        <TabsContent value="navbar" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Navbar Settings</CardTitle>
+              <CardDescription>Customize the navigation bar</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Company Name</Label>
+                  <Input value={settings.navbar_company_name || "Krishna Tech"} onChange={(e) => updateSetting("navbar_company_name", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Company Tagline</Label>
+                  <Input value={settings.navbar_company_tagline || "Solutions"} onChange={(e) => updateSetting("navbar_company_tagline", e.target.value)} />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>CTA Button Text</Label>
+                  <Input value={settings.navbar_cta_text || "Get Support"} onChange={(e) => updateSetting("navbar_cta_text", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>CTA Button Link</Label>
+                  <Input value={settings.navbar_cta_link || "/contact"} onChange={(e) => updateSetting("navbar_cta_link", e.target.value)} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Show Theme Toggle</Label>
+                  <p className="text-sm text-muted-foreground">Display dark/light mode toggle</p>
+                </div>
+                <Switch
+                  checked={settings.navbar_show_theme !== "false"}
+                  onCheckedChange={(checked) => updateSetting("navbar_show_theme", checked ? "true" : "false")}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Footer */}
+        <TabsContent value="footer" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Footer Settings</CardTitle>
+              <CardDescription>Customize the footer content</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Company Name</Label>
+                  <Input value={settings.company_name || "Krishna Tech"} onChange={(e) => updateSetting("company_name", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Company Tagline</Label>
+                  <Input value={settings.company_tagline || "Solutions"} onChange={(e) => updateSetting("company_tagline", e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Footer Description</Label>
+                <Textarea value={settings.footer_description || "Professional tech solutions for data recovery, Windows services, and computer repairs. Your trusted IT partner."} onChange={(e) => updateSetting("footer_description", e.target.value)} rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>Copyright Text</Label>
+                <Input value={settings.copyright_text || ""} onChange={(e) => updateSetting("copyright_text", e.target.value)} placeholder="© 2024 Company Name. All rights reserved." />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Privacy Policy URL</Label>
+                  <Input value={settings.privacy_policy_url || ""} onChange={(e) => updateSetting("privacy_policy_url", e.target.value)} placeholder="/privacy" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Terms of Service URL</Label>
+                  <Input value={settings.terms_of_service_url || ""} onChange={(e) => updateSetting("terms_of_service_url", e.target.value)} placeholder="/terms" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-4">
@@ -122,545 +751,62 @@ const AdminCustomization = () => {
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="site_name">Site Name</Label>
-                  <Input
-                    id="site_name"
-                    value={settings.site_name || "Krishna Tech Solutions"}
-                    onChange={(e) => updateSetting("site_name", e.target.value)}
-                    placeholder="Your business name"
-                  />
+                  <Label>Site Name (SEO)</Label>
+                  <Input value={settings.site_name || "Krishna Tech Solutions"} onChange={(e) => updateSetting("site_name", e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="site_tagline">Tagline</Label>
-                  <Input
-                    id="site_tagline"
-                    value={settings.site_tagline || ""}
-                    onChange={(e) => updateSetting("site_tagline", e.target.value)}
-                    placeholder="Your catchy tagline"
-                  />
+                  <Label>Site Tagline (SEO)</Label>
+                  <Input value={settings.site_tagline || ""} onChange={(e) => updateSetting("site_tagline", e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="site_description">Site Description (SEO)</Label>
-                <Textarea
-                  id="site_description"
-                  value={settings.site_description || ""}
-                  onChange={(e) => updateSetting("site_description", e.target.value)}
-                  placeholder="Brief description for search engines"
-                  rows={3}
-                />
+                <Label>Site Description (SEO)</Label>
+                <Textarea value={settings.site_description || ""} onChange={(e) => updateSetting("site_description", e.target.value)} placeholder="Brief description for search engines" rows={3} />
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* Branding */}
-        <TabsContent value="branding" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Palette className="w-5 h-5" />
-                Branding & Colors
+                Branding
               </CardTitle>
-              <CardDescription>Customize your brand appearance</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="logo_url">Logo URL</Label>
-                  <Input
-                    id="logo_url"
-                    value={settings.logo_url || ""}
-                    onChange={(e) => updateSetting("logo_url", e.target.value)}
-                    placeholder="https://example.com/logo.png"
-                  />
+                  <Label>Logo URL</Label>
+                  <Input value={settings.logo_url || ""} onChange={(e) => updateSetting("logo_url", e.target.value)} placeholder="https://example.com/logo.png" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="favicon_url">Favicon URL</Label>
-                  <Input
-                    id="favicon_url"
-                    value={settings.favicon_url || ""}
-                    onChange={(e) => updateSetting("favicon_url", e.target.value)}
-                    placeholder="https://example.com/favicon.ico"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="primary_color">Primary Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="primary_color"
-                      type="color"
-                      value={settings.primary_color || "#6366f1"}
-                      onChange={(e) => updateSetting("primary_color", e.target.value)}
-                      className="w-12 h-10 p-1"
-                    />
-                    <Input
-                      value={settings.primary_color || "#6366f1"}
-                      onChange={(e) => updateSetting("primary_color", e.target.value)}
-                      placeholder="#6366f1"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accent_color">Accent Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="accent_color"
-                      type="color"
-                      value={settings.accent_color || "#8b5cf6"}
-                      onChange={(e) => updateSetting("accent_color", e.target.value)}
-                      className="w-12 h-10 p-1"
-                    />
-                    <Input
-                      value={settings.accent_color || "#8b5cf6"}
-                      onChange={(e) => updateSetting("accent_color", e.target.value)}
-                      placeholder="#8b5cf6"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="background_color">Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="background_color"
-                      type="color"
-                      value={settings.background_color || "#0a0a0a"}
-                      onChange={(e) => updateSetting("background_color", e.target.value)}
-                      className="w-12 h-10 p-1"
-                    />
-                    <Input
-                      value={settings.background_color || "#0a0a0a"}
-                      onChange={(e) => updateSetting("background_color", e.target.value)}
-                      placeholder="#0a0a0a"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Contact Info */}
-        <TabsContent value="contact" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="w-5 h-5" />
-                Contact Information
-              </CardTitle>
-              <CardDescription>Update your business contact details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="contact_email">
-                    <Mail className="w-4 h-4 inline mr-2" />
-                    Email Address
-                  </Label>
-                  <Input
-                    id="contact_email"
-                    type="email"
-                    value={settings.contact_email || ""}
-                    onChange={(e) => updateSetting("contact_email", e.target.value)}
-                    placeholder="contact@example.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contact_phone">
-                    <Phone className="w-4 h-4 inline mr-2" />
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="contact_phone"
-                    value={settings.contact_phone || ""}
-                    onChange={(e) => updateSetting("contact_phone", e.target.value)}
-                    placeholder="+91 1234567890"
-                  />
+                  <Label>Auth Page Logo URL</Label>
+                  <Input value={settings.auth_logo_url || ""} onChange={(e) => updateSetting("auth_logo_url", e.target.value)} placeholder="https://example.com/logo.png" />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contact_address">
-                  <MapPin className="w-4 h-4 inline mr-2" />
-                  Business Address
-                </Label>
-                <Textarea
-                  id="contact_address"
-                  value={settings.contact_address || ""}
-                  onChange={(e) => updateSetting("contact_address", e.target.value)}
-                  placeholder="123 Main Street, City, State, ZIP"
-                  rows={2}
-                />
+                <Label>GST Number (for Invoices)</Label>
+                <Input value={settings.gst_number || ""} onChange={(e) => updateSetting("gst_number", e.target.value)} />
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
-                  <Input
-                    id="whatsapp_number"
-                    value={settings.bot_whatsapp_number || ""}
-                    onChange={(e) => updateSetting("bot_whatsapp_number", e.target.value)}
-                    placeholder="+91 1234567890"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="business_hours">
-                    <Clock className="w-4 h-4 inline mr-2" />
-                    Business Hours
-                  </Label>
-                  <Input
-                    id="business_hours"
-                    value={settings.business_hours || ""}
-                    onChange={(e) => updateSetting("business_hours", e.target.value)}
-                    placeholder="Mon-Sat: 9 AM - 8 PM"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Currency Symbol</Label>
+                <Input value={settings.currency_symbol || "₹"} onChange={(e) => updateSetting("currency_symbol", e.target.value)} />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Social Media Links</CardTitle>
-              <CardDescription>Add your social media profiles</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="social_facebook">Facebook URL</Label>
-                  <Input
-                    id="social_facebook"
-                    value={settings.social_facebook || ""}
-                    onChange={(e) => updateSetting("social_facebook", e.target.value)}
-                    placeholder="https://facebook.com/yourpage"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="social_instagram">Instagram URL</Label>
-                  <Input
-                    id="social_instagram"
-                    value={settings.social_instagram || ""}
-                    onChange={(e) => updateSetting("social_instagram", e.target.value)}
-                    placeholder="https://instagram.com/yourhandle"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="social_twitter">Twitter/X URL</Label>
-                  <Input
-                    id="social_twitter"
-                    value={settings.social_twitter || ""}
-                    onChange={(e) => updateSetting("social_twitter", e.target.value)}
-                    placeholder="https://twitter.com/yourhandle"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="social_linkedin">LinkedIn URL</Label>
-                  <Input
-                    id="social_linkedin"
-                    value={settings.social_linkedin || ""}
-                    onChange={(e) => updateSetting("social_linkedin", e.target.value)}
-                    placeholder="https://linkedin.com/company/yourcompany"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="social_youtube">YouTube URL</Label>
-                  <Input
-                    id="social_youtube"
-                    value={settings.social_youtube || ""}
-                    onChange={(e) => updateSetting("social_youtube", e.target.value)}
-                    placeholder="https://youtube.com/@yourchannel"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Homepage */}
-        <TabsContent value="homepage" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Type className="w-5 h-5" />
-                Hero Section
-              </CardTitle>
-              <CardDescription>Customize the main hero section on homepage</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="hero_title">Hero Title</Label>
-                <Input
-                  id="hero_title"
-                  value={settings.hero_title || ""}
-                  onChange={(e) => updateSetting("hero_title", e.target.value)}
-                  placeholder="Your Amazing Headline"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="hero_subtitle">Hero Subtitle</Label>
-                <Textarea
-                  id="hero_subtitle"
-                  value={settings.hero_subtitle || ""}
-                  onChange={(e) => updateSetting("hero_subtitle", e.target.value)}
-                  placeholder="A compelling description of your services"
-                  rows={2}
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="hero_button_text">Button Text</Label>
-                  <Input
-                    id="hero_button_text"
-                    value={settings.hero_button_text || "Get Started"}
-                    onChange={(e) => updateSetting("hero_button_text", e.target.value)}
-                    placeholder="Get Started"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hero_button_link">Button Link</Label>
-                  <Input
-                    id="hero_button_link"
-                    value={settings.hero_button_link || "/services"}
-                    onChange={(e) => updateSetting("hero_button_link", e.target.value)}
-                    placeholder="/services"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="hero_image">Hero Background Image URL</Label>
-                <Input
-                  id="hero_image"
-                  value={settings.hero_image || ""}
-                  onChange={(e) => updateSetting("hero_image", e.target.value)}
-                  placeholder="https://example.com/hero-bg.jpg"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                About Section
-              </CardTitle>
-              <CardDescription>Customize the about section on homepage</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="about_title">Section Title</Label>
-                <Input
-                  id="about_title"
-                  value={settings.about_title || "About Us"}
-                  onChange={(e) => updateSetting("about_title", e.target.value)}
-                  placeholder="About Us"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="about_content">About Content</Label>
-                <Textarea
-                  id="about_content"
-                  value={settings.about_content || ""}
-                  onChange={(e) => updateSetting("about_content", e.target.value)}
-                  placeholder="Tell your story..."
-                  rows={5}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Footer */}
-        <TabsContent value="footer" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Footer Settings</CardTitle>
-              <CardDescription>Customize the website footer</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="footer_text">Footer Copyright Text</Label>
-                <Input
-                  id="footer_text"
-                  value={settings.footer_text || "© 2024 Krishna Tech Solutions. All rights reserved."}
-                  onChange={(e) => updateSetting("footer_text", e.target.value)}
-                  placeholder="© 2024 Your Company. All rights reserved."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="footer_description">Footer Description</Label>
-                <Textarea
-                  id="footer_description"
-                  value={settings.footer_description || ""}
-                  onChange={(e) => updateSetting("footer_description", e.target.value)}
-                  placeholder="A brief description about your company"
-                  rows={3}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Show Newsletter Signup</Label>
-                  <p className="text-sm text-muted-foreground">Display newsletter form in footer</p>
-                </div>
-                <Switch
-                  checked={settings.show_newsletter === "true"}
-                  onCheckedChange={(checked) => updateSetting("show_newsletter", checked ? "true" : "false")}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Typography */}
-        <TabsContent value="typography" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Type className="w-5 h-5" />
-                Typography Settings
-              </CardTitle>
-              <CardDescription>Customize fonts and text styles</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Heading Font</Label>
-                  <Input
-                    value={settings.heading_font || "Space Grotesk"}
-                    onChange={(e) => updateSetting("heading_font", e.target.value)}
-                    placeholder="Space Grotesk"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Body Font</Label>
-                  <Input
-                    value={settings.body_font || "Inter"}
-                    onChange={(e) => updateSetting("body_font", e.target.value)}
-                    placeholder="Inter"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Base Font Size</Label>
-                  <Input
-                    value={settings.base_font_size || "16px"}
-                    onChange={(e) => updateSetting("base_font_size", e.target.value)}
-                    placeholder="16px"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Line Height</Label>
-                  <Input
-                    value={settings.line_height || "1.6"}
-                    onChange={(e) => updateSetting("line_height", e.target.value)}
-                    placeholder="1.6"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Letter Spacing</Label>
-                  <Input
-                    value={settings.letter_spacing || "normal"}
-                    onChange={(e) => updateSetting("letter_spacing", e.target.value)}
-                    placeholder="normal"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Navbar */}
-        <TabsContent value="navbar" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Navigation Settings</CardTitle>
-              <CardDescription>Customize the navigation bar</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Sticky Navbar</Label>
-                  <p className="text-sm text-muted-foreground">Keep navbar fixed at top</p>
-                </div>
-                <Switch
-                  checked={settings.sticky_navbar !== "false"}
-                  onCheckedChange={(checked) => updateSetting("sticky_navbar", checked ? "true" : "false")}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Show Logo</Label>
-                  <p className="text-sm text-muted-foreground">Display logo in navbar</p>
-                </div>
-                <Switch
-                  checked={settings.show_navbar_logo !== "false"}
-                  onCheckedChange={(checked) => updateSetting("show_navbar_logo", checked ? "true" : "false")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>CTA Button Text</Label>
-                <Input
-                  value={settings.navbar_cta_text || "Get Support"}
-                  onChange={(e) => updateSetting("navbar_cta_text", e.target.value)}
-                  placeholder="Get Support"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>CTA Button Link</Label>
-                <Input
-                  value={settings.navbar_cta_link || "/contact"}
-                  onChange={(e) => updateSetting("navbar_cta_link", e.target.value)}
-                  placeholder="/contact"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Advanced */}
-        <TabsContent value="advanced" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Advanced Settings</CardTitle>
-              <CardDescription>Advanced customization options</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Custom CSS</Label>
-                <Textarea
-                  value={settings.custom_css || ""}
-                  onChange={(e) => updateSetting("custom_css", e.target.value)}
-                  placeholder="/* Add custom CSS here */"
-                  rows={6}
-                  className="font-mono text-sm"
-                />
+                <Textarea value={settings.custom_css || ""} onChange={(e) => updateSetting("custom_css", e.target.value)} placeholder="/* Add custom CSS here */" rows={4} className="font-mono text-sm" />
               </div>
               <div className="space-y-2">
                 <Label>Head Scripts (Analytics, etc.)</Label>
-                <Textarea
-                  value={settings.head_scripts || ""}
-                  onChange={(e) => updateSetting("head_scripts", e.target.value)}
-                  placeholder="<!-- Google Analytics, etc. -->"
-                  rows={4}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>GST Number</Label>
-                <Input
-                  value={settings.gst_number || ""}
-                  onChange={(e) => updateSetting("gst_number", e.target.value)}
-                  placeholder="Your GST number for invoices"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Default Currency Symbol</Label>
-                <Input
-                  value={settings.currency_symbol || "₹"}
-                  onChange={(e) => updateSetting("currency_symbol", e.target.value)}
-                  placeholder="₹"
-                />
+                <Textarea value={settings.head_scripts || ""} onChange={(e) => updateSetting("head_scripts", e.target.value)} placeholder="<!-- Google Analytics, etc. -->" rows={4} className="font-mono text-sm" />
               </div>
             </CardContent>
           </Card>

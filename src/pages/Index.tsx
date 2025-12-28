@@ -5,22 +5,8 @@ import Layout from "@/components/layout/Layout";
 import ServiceCard from "@/components/ServiceCard";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  HardDrive,
-  RefreshCw,
-  KeyRound,
-  Wrench,
-  Shield,
-  Zap,
-  ArrowRight,
-  Phone,
-  Clock,
-  Award,
-  Globe,
-  Laptop,
-  Database,
-  Settings,
-  Wifi,
-  LucideIcon,
+  HardDrive, RefreshCw, KeyRound, Wrench, Shield, Zap, ArrowRight, Phone, Clock, Award,
+  Globe, Laptop, Database, Settings, Wifi, LucideIcon,
 } from "lucide-react";
 
 interface Service {
@@ -31,17 +17,7 @@ interface Service {
 }
 
 const iconMap: Record<string, LucideIcon> = {
-  HardDrive,
-  RefreshCw,
-  KeyRound,
-  Wrench,
-  Shield,
-  Zap,
-  Globe,
-  Laptop,
-  Database,
-  Settings,
-  Wifi,
+  HardDrive, RefreshCw, KeyRound, Wrench, Shield, Zap, Globe, Laptop, Database, Settings, Wifi,
 };
 
 interface SiteSettings {
@@ -51,7 +27,7 @@ interface SiteSettings {
 const Index = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({});
+  const [s, setS] = useState<SiteSettings>({});
 
   useEffect(() => {
     fetchServices();
@@ -65,67 +41,36 @@ const Index = () => {
       .eq("is_visible", true)
       .order("display_order", { ascending: true })
       .limit(4);
-    
     if (data) setServices(data);
     setLoading(false);
   };
 
   const fetchSettings = async () => {
-    const { data } = await supabase
-      .from("site_settings")
-      .select("key, value");
-    
+    const { data } = await supabase.from("site_settings").select("key, value");
     if (data) {
       const settingsObj: SiteSettings = {};
-      data.forEach((s) => {
-        settingsObj[s.key] = s.value;
-      });
-      setSiteSettings(settingsObj);
+      data.forEach((item) => { settingsObj[item.key] = item.value; });
+      setS(settingsObj);
     }
   };
 
   const stats = [
-    { 
-      value: siteSettings.stat_1_value || "10K+", 
-      label: siteSettings.stat_1_label || "Happy Customers" 
-    },
-    { 
-      value: siteSettings.stat_2_value || "95%", 
-      label: siteSettings.stat_2_label || "Recovery Rate" 
-    },
-    { 
-      value: siteSettings.stat_3_value || "5+", 
-      label: siteSettings.stat_3_label || "Years Experience" 
-    },
-    { 
-      value: siteSettings.stat_4_value || "24/7", 
-      label: siteSettings.stat_4_label || "Support Available" 
-    },
+    { value: s.stat_1_value || "10K+", label: s.stat_1_label || "Happy Customers" },
+    { value: s.stat_2_value || "95%", label: s.stat_2_label || "Recovery Rate" },
+    { value: s.stat_3_value || "5+", label: s.stat_3_label || "Years Experience" },
+    { value: s.stat_4_value || "24/7", label: s.stat_4_label || "Support Available" },
   ];
 
   const whyUs = [
-    {
-      icon: Shield,
-      title: "100% Data Safety",
-      description: "Your data security is our top priority. We follow strict protocols.",
-    },
-    {
-      icon: Zap,
-      title: "Fast Turnaround",
-      description: "Most services completed within 24-48 hours.",
-    },
-    {
-      icon: Award,
-      title: "Expert Technicians",
-      description: "Certified professionals with years of experience.",
-    },
+    { icon: Shield, title: s.whyus_feature1_title || "100% Data Safety", description: s.whyus_feature1_desc || "Your data security is our top priority. We follow strict protocols." },
+    { icon: Zap, title: s.whyus_feature2_title || "Fast Turnaround", description: s.whyus_feature2_desc || "Most services completed within 24-48 hours." },
+    { icon: Award, title: s.whyus_feature3_title || "Expert Technicians", description: s.whyus_feature3_desc || "Certified professionals with years of experience." },
   ];
 
   return (
     <Layout>
       {/* Hero Section */}
       <section className="hero-section min-h-[80vh] md:min-h-[90vh] flex items-center relative overflow-hidden py-12 md:py-0">
-        {/* Background Pattern */}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-20 left-10 w-48 md:w-72 h-48 md:h-72 bg-primary/20 rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-64 md:w-96 h-64 md:h-96 bg-accent/20 rounded-full blur-3xl" />
@@ -135,31 +80,30 @@ const Index = () => {
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-fade-in">
               <span className="inline-block px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-primary/20 text-primary text-xs md:text-sm font-medium mb-6 md:mb-8">
-                Trusted Tech Solutions Since 2019
+                {s.hero_badge || "Trusted Tech Solutions Since 2019"}
               </span>
             </div>
 
             <h1 className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-hero-foreground mb-4 md:mb-6">
-              Your Data is <span className="gradient-text">Precious</span>
+              {s.hero_title_1 || "Your Data is"} <span className="gradient-text">{s.hero_title_highlight || "Precious"}</span>
               <br className="hidden sm:block" />
-              <span className="sm:hidden"> </span>We Recover It
+              <span className="sm:hidden"> </span>{s.hero_title_2 || "We Recover It"}
             </h1>
 
             <p className="text-base md:text-lg lg:text-xl text-hero-foreground/70 max-w-2xl mx-auto mb-8 md:mb-10 px-4">
-              Professional data recovery, Windows services, and computer repairs. Expert solutions with no data loss
-              guarantee.
+              {s.hero_description || "Professional data recovery, Windows services, and computer repairs. Expert solutions with no data loss guarantee."}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">
-              <Link to="/contact" className="w-full sm:w-auto">
+              <Link to={s.hero_btn1_link || "/contact"} className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto">
-                  Get Free Consultation
+                  {s.hero_btn1_text || "Get Free Consultation"}
                   <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
                 </Button>
               </Link>
-              <Link to="/services" className="w-full sm:w-auto">
+              <Link to={s.hero_btn2_link || "/services"} className="w-full sm:w-auto">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  View Services
+                  {s.hero_btn2_text || "View Services"}
                 </Button>
               </Link>
             </div>
@@ -181,11 +125,10 @@ const Index = () => {
       <section className="py-12 md:py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 md:mb-16">
-            <span className="text-primary font-medium text-sm md:text-base">Our Services</span>
-            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-2">What We Offer</h2>
+            <span className="text-primary font-medium text-sm md:text-base">{s.home_services_badge || "Our Services"}</span>
+            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-2">{s.home_services_title || "What We Offer"}</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mt-3 md:mt-4 text-sm md:text-base px-4">
-              Comprehensive tech solutions for all your computer needs. From data recovery to system upgrades, we've got
-              you covered.
+              {s.home_services_desc || "Comprehensive tech solutions for all your computer needs. From data recovery to system upgrades, we've got you covered."}
             </p>
           </div>
 
@@ -194,8 +137,8 @@ const Index = () => {
               <div className="col-span-2 text-center py-8 text-muted-foreground">Loading services...</div>
             ) : services.length > 0 ? (
               services.map((service) => (
-                <ServiceCard 
-                  key={service.id} 
+                <ServiceCard
+                  key={service.id}
                   icon={iconMap[service.icon || "Globe"] || Globe}
                   title={service.name}
                   description={service.description || ""}
@@ -209,7 +152,7 @@ const Index = () => {
           <div className="text-center mt-8 md:mt-12">
             <Link to="/services">
               <Button variant="outline" size="lg">
-                View All Services
+                {s.home_services_btn || "View All Services"}
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
               </Button>
             </Link>
@@ -222,13 +165,12 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div>
-              <span className="text-primary font-medium text-sm md:text-base">Why Choose Us</span>
+              <span className="text-primary font-medium text-sm md:text-base">{s.whyus_badge || "Why Choose Us"}</span>
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4 md:mb-6">
-                Trusted by Thousands of Customers
+                {s.whyus_title || "Trusted by Thousands of Customers"}
               </h2>
               <p className="text-muted-foreground mb-6 md:mb-8 text-sm md:text-base">
-                At Krishna Tech Solutions, we combine expertise with cutting-edge technology to deliver exceptional
-                results. Your satisfaction is our mission.
+                {s.whyus_description || "At Krishna Tech Solutions, we combine expertise with cutting-edge technology to deliver exceptional results. Your satisfaction is our mission."}
               </p>
 
               <div className="space-y-4 md:space-y-6">
@@ -247,26 +189,26 @@ const Index = () => {
             </div>
 
             <div className="bg-card rounded-2xl md:rounded-3xl p-6 md:p-8 card-shadow border border-border">
-              <h3 className="font-display text-xl md:text-2xl font-bold text-foreground mb-4 md:mb-6">Quick Contact</h3>
+              <h3 className="font-display text-xl md:text-2xl font-bold text-foreground mb-4 md:mb-6">{s.whyus_contact_title || "Quick Contact"}</h3>
               <div className="space-y-4 md:space-y-6">
                 <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg md:rounded-xl bg-muted/50">
                   <Phone className="w-6 h-6 md:w-8 md:h-8 text-primary" />
                   <div>
                     <p className="text-xs md:text-sm text-muted-foreground">Call Us Now</p>
-                    <p className="font-semibold text-foreground text-sm md:text-base">+91 7026292525</p>
+                    <p className="font-semibold text-foreground text-sm md:text-base">{s.contact_phone || "+91 7026292525"}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg md:rounded-xl bg-muted/50">
                   <Clock className="w-6 h-6 md:w-8 md:h-8 text-primary" />
                   <div>
                     <p className="text-xs md:text-sm text-muted-foreground">Working Hours</p>
-                    <p className="font-semibold text-foreground text-sm md:text-base">Mon-Sat: 9AM - 8PM</p>
+                    <p className="font-semibold text-foreground text-sm md:text-base">{s.whyus_working_hours || "Mon-Sat: 9AM - 8PM"}</p>
                   </div>
                 </div>
               </div>
               <Link to="/contact" className="block mt-4 md:mt-6">
                 <Button className="w-full" size="lg">
-                  Book Appointment
+                  {s.whyus_btn_text || "Book Appointment"}
                 </Button>
               </Link>
             </div>
@@ -284,25 +226,24 @@ const Index = () => {
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="font-display text-2xl sm:text-3xl md:text-5xl font-bold text-hero-foreground mb-4 md:mb-6">
-              Lost Your Data?
+              {s.cta_title_1 || "Lost Your Data?"}
               <br />
-              <span className="gradient-text">We Can Help!</span>
+              <span className="gradient-text">{s.cta_title_highlight || "We Can Help!"}</span>
             </h2>
             <p className="text-hero-foreground/70 text-sm md:text-lg mb-8 md:mb-10 max-w-xl mx-auto px-4">
-              Don't panic! Contact us immediately for a free consultation. Our experts are ready to recover your
-              valuable data.
+              {s.cta_description || "Don't panic! Contact us immediately for a free consultation. Our experts are ready to recover your valuable data."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">
-              <Link to="/contact" className="w-full sm:w-auto">
+              <Link to={s.cta_btn_link || "/contact"} className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto">
-                  Contact Us Now
+                  {s.cta_btn_text || "Contact Us Now"}
                   <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
                 </Button>
               </Link>
-              <a href="tel:+917026292525" className="w-full sm:w-auto">
+              <a href={`tel:${s.contact_phone || "+917026292525"}`} className="w-full sm:w-auto">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
                   <Phone className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                  Call: +91 7026292525
+                  Call: {s.contact_phone || "+91 7026292525"}
                 </Button>
               </a>
             </div>
