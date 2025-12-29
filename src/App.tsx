@@ -13,6 +13,7 @@ import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import UserDashboard from "./pages/UserDashboard";
+import Lander from "./pages/Lander";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => {
               <MaintenanceProvider>
                 <Routes>
                   <Route path="/" element={<Index />} />
+                  <Route path="/lander" element={<Lander />} />
                   <Route path="/services" element={<Services />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
