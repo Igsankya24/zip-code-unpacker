@@ -27,7 +27,8 @@ import {
   FileText,
   Wrench,
   Key,
-  ShieldAlert
+  ShieldAlert,
+  FolderOpen
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -46,6 +47,7 @@ import AdminUserAccess from "@/components/admin/AdminUserAccess";
 import AdminInvoices from "@/components/admin/AdminInvoices";
 import AdminTechnicians from "@/components/admin/AdminTechnicians";
 import AdminApiKeys from "@/components/admin/AdminApiKeys";
+import AdminServiceProjects from "@/components/admin/AdminServiceProjects";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +66,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys";
+type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys";
 
 interface DashboardStats {
   totalUsers: number;
@@ -541,6 +543,7 @@ const Admin = () => {
     { id: "dashboard" as AdminTab, label: "Dashboard", icon: LayoutDashboard, visible: true },
     { id: "analytics" as AdminTab, label: "Analytics", icon: BarChart3, visible: isSuperAdmin },
     { id: "services" as AdminTab, label: "Services", icon: Briefcase, visible: permissions.can_view_services },
+    { id: "service-projects" as AdminTab, label: "Service Projects", icon: FolderOpen, visible: permissions.can_view_services },
     { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar, visible: permissions.can_view_appointments },
     { id: "invoices" as AdminTab, label: "Invoices", icon: FileText, visible: permissions.can_view_appointments },
     { id: "technicians" as AdminTab, label: "Technicians", icon: Wrench, visible: permissions.can_view_appointments },
@@ -745,6 +748,8 @@ const Admin = () => {
         return isSuperAdmin ? <AdminAnalytics /> : null;
       case "services":
         return <AdminServices />;
+      case "service-projects":
+        return <AdminServiceProjects />;
       case "appointments":
         return <AdminAppointments onNavigateToInvoice={handleNavigateToInvoice} />;
       case "invoices":
