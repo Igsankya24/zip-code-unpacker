@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MaintenanceProvider } from "@/hooks/useMaintenanceMode";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { useSiteMetadata } from "@/hooks/useSiteMetadata";
 import Index from "./pages/Index";
 import Services from "./pages/Services";
 import About from "./pages/About";
@@ -18,6 +19,11 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const SiteMetadataLoader = ({ children }: { children: React.ReactNode }) => {
+  useSiteMetadata();
+  return <>{children}</>;
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -28,17 +34,19 @@ const App = () => {
           <BrowserRouter>
             <AuthProvider>
               <MaintenanceProvider>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/lander" element={<Navigate to="/" replace />} />
-                  <Route path="/services" element={<Services />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/dashboard" element={<UserDashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <SiteMetadataLoader>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/lander" element={<Navigate to="/" replace />} />
+                    <Route path="/services" element={<Services />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/dashboard" element={<UserDashboard />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </SiteMetadataLoader>
               </MaintenanceProvider>
             </AuthProvider>
           </BrowserRouter>
