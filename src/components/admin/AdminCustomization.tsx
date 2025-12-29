@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,14 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Save, Globe, Palette, Phone, Mail, MapPin, Clock, Type, Home, Info, FileText, Navigation, LayoutGrid } from "lucide-react";
+import { Save, Globe, Palette, Phone, Mail, MapPin, Clock, Type, Home, Info, FileText, Navigation, LayoutGrid, Upload, Image, Loader2 } from "lucide-react";
 
 const AdminCustomization = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,6 +48,62 @@ const AdminCustomization = () => {
     }
     toast({ title: "Success", description: "All settings saved successfully" });
     setSaving(false);
+  };
+
+  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ["image/png", "image/jpeg", "image/x-icon", "image/svg+xml", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a PNG, JPG, ICO, SVG, or WebP image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 2MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingFavicon(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `favicon-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("site-icons")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrl } = supabase.storage
+        .from("site-icons")
+        .getPublicUrl(fileName);
+
+      updateSetting("favicon_url", publicUrl.publicUrl);
+      toast({ title: "Success", description: "Favicon uploaded successfully" });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload favicon",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFavicon(false);
+      if (faviconInputRef.current) {
+        faviconInputRef.current.value = "";
+      }
+    }
   };
 
   if (loading) {
@@ -740,13 +798,96 @@ const AdminCustomization = () => {
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-4">
+          {/* Website Title & Icon Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Image className="w-5 h-5" />
+                Website Title & Icon
+              </CardTitle>
+              <CardDescription>Configure the browser tab title and favicon</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Website Title</Label>
+                <Input
+                  value={settings.site_title || "Krishna Tech Solutions"}
+                  onChange={(e) => updateSetting("site_title", e.target.value)}
+                  placeholder="Enter website title"
+                />
+                <p className="text-xs text-muted-foreground">This appears in the browser tab and search results</p>
+              </div>
+              
+              <div className="space-y-3">
+                <Label>Favicon (Site Icon)</Label>
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-16 h-16 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                    {settings.favicon_url ? (
+                      <img
+                        src={settings.favicon_url}
+                        alt="Current favicon"
+                        className="w-12 h-12 object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <Image className="w-8 h-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => faviconInputRef.current?.click()}
+                        disabled={uploadingFavicon}
+                      >
+                        {uploadingFavicon ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Image
+                          </>
+                        )}
+                      </Button>
+                      <input
+                        ref={faviconInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/x-icon,image/svg+xml,image/webp"
+                        onChange={handleFaviconUpload}
+                        className="hidden"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Recommended: 32x32 or 64x64 pixels. Supports PNG, JPG, ICO, SVG, WebP (max 2MB)
+                    </p>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Or enter URL directly</Label>
+                      <Input
+                        value={settings.favicon_url || ""}
+                        onChange={(e) => updateSetting("favicon_url", e.target.value)}
+                        placeholder="https://example.com/favicon.ico"
+                        className="text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="w-5 h-5" />
-                General Settings
+                SEO Settings
               </CardTitle>
-              <CardDescription>Configure basic website information</CardDescription>
+              <CardDescription>Configure search engine optimization settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
