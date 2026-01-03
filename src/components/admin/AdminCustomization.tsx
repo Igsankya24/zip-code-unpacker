@@ -583,6 +583,34 @@ const AdminCustomization = () => {
                 </div>
               </AccordionContent>
             </AccordionItem>
+
+            {/* Team Section */}
+            <AccordionItem value="about-team" className="border rounded-lg px-4">
+              <AccordionTrigger className="text-lg font-semibold">Team Section</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Section Badge</Label>
+                  <Input value={settings.about_team_badge || "Our Leadership"} onChange={(e) => updateSetting("about_team_badge", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Title</Label>
+                  <Input value={settings.about_team_title || "Meet Our Team"} onChange={(e) => updateSetting("about_team_title", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Card Shape</Label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background"
+                    value={settings.team_card_shape || "rounded"}
+                    onChange={(e) => updateSetting("team_card_shape", e.target.value)}
+                  >
+                    <option value="rounded">Rounded (Default)</option>
+                    <option value="circle">Circular</option>
+                    <option value="square">Square</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">Choose the shape for team member cards and photos</p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           </Accordion>
         </TabsContent>
 
@@ -648,6 +676,13 @@ const AdminCustomization = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Google Maps Embed URL</Label>
+                  <Input value={settings.google_maps_embed_url || ""} onChange={(e) => updateSetting("google_maps_embed_url", e.target.value)} placeholder="https://www.google.com/maps/embed?pb=..." />
+                  <p className="text-xs text-muted-foreground">
+                    Get embed URL: Go to Google Maps → Search location → Click Share → Embed a map → Copy iframe src URL
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Google Maps URL (Legacy)</Label>
                   <Input value={settings.google_maps_url || ""} onChange={(e) => updateSetting("google_maps_url", e.target.value)} placeholder="https://www.google.com/maps/embed?..." />
                 </div>
               </AccordionContent>

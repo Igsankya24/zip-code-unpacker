@@ -155,16 +155,43 @@ const Contact = () => {
                 ))}
               </div>
 
-              {/* Map */}
-              <div className="rounded-xl md:rounded-2xl overflow-hidden border border-border h-48 md:h-64 bg-muted">
-                {s.google_maps_url ? (
-                  <iframe src={s.google_maps_url} width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+              {/* Google Map - Full Width */}
+              <div className="rounded-xl md:rounded-2xl overflow-hidden border border-border h-64 md:h-80 bg-muted">
+                {s.google_maps_embed_url ? (
+                  <iframe 
+                    src={s.google_maps_embed_url} 
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0 }} 
+                    allowFullScreen 
+                    loading="lazy" 
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Google Maps Location"
+                  />
+                ) : s.google_maps_url ? (
+                  <iframe 
+                    src={s.google_maps_url} 
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0 }} 
+                    allowFullScreen 
+                    loading="lazy" 
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Google Maps Location"
+                  />
                 ) : (
                   <div className="h-full flex items-center justify-center">
                     <div className="text-center px-4">
                       <MapPin className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground mx-auto mb-2 md:mb-3" />
                       <p className="text-muted-foreground text-sm md:text-base">{s.contact_address || "Belgaum, Karnataka - 590014"}</p>
-                      <a href={`https://maps.google.com/?q=${encodeURIComponent(s.contact_address || "Belgaum Karnataka 590014")}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs md:text-sm">Open in Google Maps →</a>
+                      <a 
+                        href={`https://maps.google.com/?q=${encodeURIComponent(s.contact_address || "Belgaum Karnataka 590014")}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-primary hover:underline text-xs md:text-sm"
+                      >
+                        Open in Google Maps →
+                      </a>
                     </div>
                   </div>
                 )}
@@ -173,6 +200,24 @@ const Contact = () => {
           </div>
         </div>
       </section>
+
+      {/* Full Width Map Section */}
+      {(s.google_maps_embed_url || s.google_maps_url) && (
+        <section className="py-0">
+          <div className="w-full h-[300px] md:h-[400px] bg-muted">
+            <iframe 
+              src={s.google_maps_embed_url || s.google_maps_url} 
+              width="100%" 
+              height="100%" 
+              style={{ border: 0 }} 
+              allowFullScreen 
+              loading="lazy" 
+              referrerPolicy="no-referrer-when-downgrade"
+              title="Google Maps Full Width Location"
+            />
+          </div>
+        </section>
+      )}
 
       {/* FAQ CTA */}
       <section className="py-12 md:py-16 bg-muted/50">

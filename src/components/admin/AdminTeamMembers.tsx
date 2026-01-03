@@ -9,6 +9,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Upload, X, GripVertical, Linkedin, Twitter, Mail, Phone, Crop } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
+import { compressImageFromBlob } from "@/lib/imageCompression";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +44,70 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const SortableTeamCard = ({ member, onEdit, onDelete, onToggleVisibility }: {
+  member: TeamMember;
+  onEdit: (member: TeamMember) => void;
+  onDelete: (member: TeamMember) => void;
+  onToggleVisibility: (member: TeamMember) => void;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: member.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card ref={setNodeRef} style={style} className={!member.is_visible ? "opacity-50" : ""}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-4">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+            <GripVertical className="w-5 h-5 text-muted-foreground" />
+          </div>
+          
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+            {member.photo_url ? (
+              <img src={member.photo_url} alt={member.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-2xl font-bold text-muted-foreground">
+                {member.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground">{member.name}</h3>
+            <p className="text-sm text-primary">{member.role}</p>
+            {member.bio && (
+              <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{member.bio}</p>
+            )}
+            <div className="flex items-center gap-3 mt-2">
+              {member.email && <Mail className="w-4 h-4 text-muted-foreground" />}
+              {member.phone && <Phone className="w-4 h-4 text-muted-foreground" />}
+              {member.linkedin_url && <Linkedin className="w-4 h-4 text-muted-foreground" />}
+              {member.twitter_url && <Twitter className="w-4 h-4 text-muted-foreground" />}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={member.is_visible}
+              onCheckedChange={() => onToggleVisibility(member)}
+            />
+            <Button variant="ghost" size="icon" onClick={() => onEdit(member)}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onDelete(member)}>
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 interface TeamMember {
   id: string;
@@ -107,22 +189,53 @@ const AdminTeamMembers = () => {
 
   const handleCroppedImage = async (blob: Blob) => {
     setUploading(true);
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+    try {
+      // Compress image before uploading
+      const compressedFile = await compressImageFromBlob(blob, `team-${Date.now()}.jpg`, {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 800,
+      });
 
-    const { error: uploadError } = await supabase.storage
-      .from("team-photos")
-      .upload(fileName, blob, { contentType: "image/jpeg" });
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
 
-    if (uploadError) {
-      toast({ title: "Error", description: "Failed to upload photo", variant: "destructive" });
-      setUploading(false);
-      return;
+      const { error: uploadError } = await supabase.storage
+        .from("team-photos")
+        .upload(fileName, compressedFile, { contentType: "image/jpeg" });
+
+      if (uploadError) {
+        toast({ title: "Error", description: "Failed to upload photo", variant: "destructive" });
+        setUploading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from("team-photos").getPublicUrl(fileName);
+      setFormData((prev) => ({ ...prev, photo_url: urlData.publicUrl }));
+      toast({ title: "Success", description: "Photo uploaded and compressed successfully" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to process photo", variant: "destructive" });
     }
-
-    const { data: urlData } = supabase.storage.from("team-photos").getPublicUrl(fileName);
-    setFormData((prev) => ({ ...prev, photo_url: urlData.publicUrl }));
     setUploading(false);
-    toast({ title: "Success", description: "Photo uploaded successfully" });
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = members.findIndex((m) => m.id === active.id);
+      const newIndex = members.findIndex((m) => m.id === over.id);
+      const newOrder = arrayMove(members, oldIndex, newIndex);
+      setMembers(newOrder);
+
+      // Update display_order in database
+      for (let i = 0; i < newOrder.length; i++) {
+        await supabase.from("team_members").update({ display_order: i }).eq("id", newOrder[i].id);
+      }
+      toast({ title: "Success", description: "Order updated" });
+    }
   };
 
   const openCreateDialog = () => {
@@ -267,61 +380,24 @@ const AdminTeamMembers = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {members.map((member) => (
-            <Card key={member.id} className={!member.is_visible ? "opacity-50" : ""}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
-                  
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {member.photo_url ? (
-                      <img src={member.photo_url} alt={member.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl font-bold text-muted-foreground">
-                        {member.name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground">{member.name}</h3>
-                    <p className="text-sm text-primary">{member.role}</p>
-                    {member.bio && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{member.bio}</p>
-                    )}
-                    <div className="flex items-center gap-3 mt-2">
-                      {member.email && <Mail className="w-4 h-4 text-muted-foreground" />}
-                      {member.phone && <Phone className="w-4 h-4 text-muted-foreground" />}
-                      {member.linkedin_url && <Linkedin className="w-4 h-4 text-muted-foreground" />}
-                      {member.twitter_url && <Twitter className="w-4 h-4 text-muted-foreground" />}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={member.is_visible}
-                      onCheckedChange={() => toggleVisibility(member)}
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(member)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedMember(member);
-                        setDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={members.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+            <div className="grid gap-4">
+              {members.map((member) => (
+                <SortableTeamCard
+                  key={member.id}
+                  member={member}
+                  onEdit={openEditDialog}
+                  onDelete={(m) => {
+                    setSelectedMember(m);
+                    setDeleteDialogOpen(true);
+                  }}
+                  onToggleVisibility={toggleVisibility}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Create/Edit Dialog */}
