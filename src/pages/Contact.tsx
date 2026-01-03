@@ -6,14 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Phone, Mail, MapPin, Clock, Send, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface Service {
   id: string;
   name: string;
-}
-
-interface Settings {
-  [key: string]: string;
 }
 
 const Contact = () => {
@@ -21,25 +18,15 @@ const Contact = () => {
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", service: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
-  const [s, setS] = useState<Settings>({});
+  const { settings: s } = useSiteSettings();
 
   useEffect(() => {
     fetchServices();
-    fetchSettings();
   }, []);
 
   const fetchServices = async () => {
     const { data } = await supabase.from("services").select("id, name").eq("is_visible", true).order("display_order");
     if (data) setServices(data);
-  };
-
-  const fetchSettings = async () => {
-    const { data } = await supabase.from("site_settings").select("key, value");
-    if (data) {
-      const settingsObj: Settings = {};
-      data.forEach((item) => { settingsObj[item.key] = item.value; });
-      setS(settingsObj);
-    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

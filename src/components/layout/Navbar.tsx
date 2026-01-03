@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { supabase } from "@/integrations/supabase/client";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,27 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-interface Settings {
-  [key: string]: string;
-}
-
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [s, setS] = useState<Settings>({});
+  const { settings: s } = useSiteSettings();
   const location = useLocation();
   const { user, signOut } = useAuth();
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      const { data } = await supabase.from("site_settings").select("key, value");
-      if (data) {
-        const settingsObj: Settings = {};
-        data.forEach((item) => { settingsObj[item.key] = item.value; });
-        setS(settingsObj);
-      }
-    };
-    fetchSettings();
-  }, []);
 
   const navLinks = [
     { name: "Home", path: "/" },
