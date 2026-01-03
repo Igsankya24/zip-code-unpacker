@@ -122,7 +122,7 @@ const WebsiteTrafficCard = () => {
   }
 
   return (
-    <Card className="col-span-full lg:col-span-2">
+    <Card className="h-full">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>

@@ -32,6 +32,7 @@ import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import html2canvas from "html2canvas";
 import WebsiteTrafficCard from "./WebsiteTrafficCard";
+import ActiveVisitorsCard from "./ActiveVisitorsCard";
 
 interface AppointmentData {
   date: string;
@@ -469,8 +470,13 @@ const AdminAnalytics = () => {
         </Card>
       </div>
 
-      {/* Website Traffic Card */}
-      <WebsiteTrafficCard />
+      {/* Live Visitors & Website Traffic Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <ActiveVisitorsCard />
+        <div className="lg:col-span-2">
+          <WebsiteTrafficCard />
+        </div>
+      </div>
 
       <Tabs defaultValue="appointments" className="w-full">
         <TabsList>
