@@ -9,13 +9,16 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Save, Globe, Palette, Phone, Mail, MapPin, Clock, Type, Home, Info, FileText, Navigation, LayoutGrid, Upload, Image, Loader2 } from "lucide-react";
+import { Save, Globe, Palette, Phone, Mail, MapPin, Clock, Type, Home, Info, FileText, Navigation, LayoutGrid, Upload, Image, Loader2, Crop } from "lucide-react";
+import ImageCropper from "@/components/ImageCropper";
 
 const AdminCustomization = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState<string>("");
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -50,7 +53,7 @@ const AdminCustomization = () => {
     setSaving(false);
   };
 
-  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFaviconSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -65,24 +68,36 @@ const AdminCustomization = () => {
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please upload an image smaller than 2MB",
+        description: "Please upload an image smaller than 5MB",
         variant: "destructive",
       });
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempImageSrc(reader.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+    
+    if (faviconInputRef.current) {
+      faviconInputRef.current.value = "";
+    }
+  };
+
+  const handleCroppedFavicon = async (blob: Blob) => {
     setUploadingFavicon(true);
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `favicon-${Date.now()}.${fileExt}`;
+      const fileName = `favicon-${Date.now()}.png`;
 
       const { error: uploadError } = await supabase.storage
         .from("site-icons")
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, blob, { contentType: "image/png", upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -100,9 +115,6 @@ const AdminCustomization = () => {
       });
     } finally {
       setUploadingFavicon(false);
-      if (faviconInputRef.current) {
-        faviconInputRef.current.value = "";
-      }
     }
   };
 
@@ -850,8 +862,8 @@ const AdminCustomization = () => {
                           </>
                         ) : (
                           <>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Image
+                            <Crop className="w-4 h-4 mr-2" />
+                            Upload & Crop
                           </>
                         )}
                       </Button>
@@ -859,12 +871,12 @@ const AdminCustomization = () => {
                         ref={faviconInputRef}
                         type="file"
                         accept="image/png,image/jpeg,image/x-icon,image/svg+xml,image/webp"
-                        onChange={handleFaviconUpload}
+                        onChange={handleFaviconSelect}
                         className="hidden"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Recommended: 32x32 or 64x64 pixels. Supports PNG, JPG, ICO, SVG, WebP (max 2MB)
+                      Recommended: 32x32 or 64x64 pixels. Supports PNG, JPG, ICO, SVG, WebP (max 5MB)
                     </p>
                     <div className="space-y-1">
                       <Label className="text-xs">Or enter URL directly</Label>
@@ -953,6 +965,16 @@ const AdminCustomization = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Image Cropper */}
+      <ImageCropper
+        open={cropperOpen}
+        onClose={() => setCropperOpen(false)}
+        imageSrc={tempImageSrc}
+        onCropComplete={handleCroppedFavicon}
+        aspectRatio={1}
+        circularCrop={false}
+      />
     </div>
   );
 };

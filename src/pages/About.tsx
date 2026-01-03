@@ -3,11 +3,8 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { Users, Target, Award, Heart, CheckCircle2, ArrowRight, Mail, Phone, Linkedin, Twitter } from "lucide-react";
-
-interface Settings {
-  [key: string]: string;
-}
 
 interface TeamMember {
   id: string;
@@ -22,27 +19,19 @@ interface TeamMember {
 }
 
 const About = () => {
-  const [s, setS] = useState<Settings>({});
+  const { settings: s } = useSiteSettings();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const [settingsRes, teamRes] = await Promise.all([
-        supabase.from("site_settings").select("key, value"),
-        supabase.from("team_members").select("*").eq("is_visible", true).order("display_order", { ascending: true }),
-      ]);
-
-      if (settingsRes.data) {
-        const settingsObj: Settings = {};
-        settingsRes.data.forEach((item) => { settingsObj[item.key] = item.value; });
-        setS(settingsObj);
-      }
-
-      if (teamRes.data) {
-        setTeamMembers(teamRes.data);
-      }
+    const fetchTeam = async () => {
+      const { data } = await supabase
+        .from("team_members")
+        .select("*")
+        .eq("is_visible", true)
+        .order("display_order", { ascending: true });
+      if (data) setTeamMembers(data);
     };
-    fetchData();
+    fetchTeam();
   }, []);
 
   const values = [

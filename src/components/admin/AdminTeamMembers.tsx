@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Upload, X, GripVertical, Linkedin, Twitter, Mail, Phone } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, X, GripVertical, Linkedin, Twitter, Mail, Phone, Crop } from "lucide-react";
+import ImageCropper from "@/components/ImageCropper";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,8 @@ const AdminTeamMembers = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState<string>("");
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -79,7 +82,7 @@ const AdminTeamMembers = () => {
     setLoading(false);
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -88,18 +91,27 @@ const AdminTeamMembers = () => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" });
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 10MB", variant: "destructive" });
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempImageSrc(reader.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleCroppedImage = async (blob: Blob) => {
     setUploading(true);
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("team-photos")
-      .upload(fileName, file);
+      .upload(fileName, blob, { contentType: "image/jpeg" });
 
     if (uploadError) {
       toast({ title: "Error", description: "Failed to upload photo", variant: "destructive" });
@@ -332,15 +344,15 @@ const AdminTeamMembers = () => {
               <div className="flex gap-2">
                 <Label htmlFor="photo-upload" className="cursor-pointer">
                   <div className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80">
-                    <Upload className="w-4 h-4" />
-                    {uploading ? "Uploading..." : "Upload Photo"}
+                    <Crop className="w-4 h-4" />
+                    {uploading ? "Uploading..." : "Upload & Crop"}
                   </div>
                   <input
                     id="photo-upload"
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={handlePhotoUpload}
+                    onChange={handlePhotoSelect}
                     disabled={uploading}
                   />
                 </Label>
@@ -461,6 +473,16 @@ const AdminTeamMembers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image Cropper */}
+      <ImageCropper
+        open={cropperOpen}
+        onClose={() => setCropperOpen(false)}
+        imageSrc={tempImageSrc}
+        onCropComplete={handleCroppedImage}
+        aspectRatio={1}
+        circularCrop={true}
+      />
     </div>
   );
 };

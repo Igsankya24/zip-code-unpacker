@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, User, Phone, Mail, Briefcase, MapPin, Upload, X } from "lucide-react";
+import { Plus, Edit, Trash2, User, Phone, Mail, Briefcase, MapPin, Crop, X } from "lucide-react";
+import ImageCropper from "@/components/ImageCropper";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ const AdminTechnicians = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTechnician, setEditingTechnician] = useState<Technician | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -86,7 +89,7 @@ const AdminTechnicians = () => {
     setDialogOpen(true);
   };
 
-  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -95,18 +98,27 @@ const AdminTechnicians = () => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" });
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 10MB", variant: "destructive" });
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempImageSrc(reader.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  const handleCroppedImage = async (blob: Blob) => {
     setUploading(true);
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("technician-photos")
-      .upload(fileName, file);
+      .upload(fileName, blob, { contentType: "image/jpeg" });
 
     if (uploadError) {
       toast({ title: "Error", description: uploadError.message, variant: "destructive" });
@@ -310,7 +322,7 @@ const AdminTechnicians = () => {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={handlePhotoUpload}
+                    onChange={handlePhotoSelect}
                     className="hidden"
                   />
                   <Button
@@ -320,8 +332,8 @@ const AdminTechnicians = () => {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                   >
-                    <Upload className="w-4 h-4 mr-2" />
-                    {uploading ? "Uploading..." : "Upload"}
+                    <Crop className="w-4 h-4 mr-2" />
+                    {uploading ? "Uploading..." : "Upload & Crop"}
                   </Button>
                   {formData.photo_url && (
                     <Button
@@ -403,6 +415,16 @@ const AdminTechnicians = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Image Cropper */}
+      <ImageCropper
+        open={cropperOpen}
+        onClose={() => setCropperOpen(false)}
+        imageSrc={tempImageSrc}
+        onCropComplete={handleCroppedImage}
+        aspectRatio={1}
+        circularCrop={true}
+      />
     </div>
   );
 };

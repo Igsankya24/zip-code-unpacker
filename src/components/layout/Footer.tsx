@@ -2,10 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Monitor, Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-
-interface Settings {
-  [key: string]: string;
-}
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface Service {
   id: string;
@@ -13,27 +10,16 @@ interface Service {
 }
 
 const Footer = () => {
-  const [s, setS] = useState<Settings>({});
+  const { settings: s } = useSiteSettings();
   const [services, setServices] = useState<Service[]>([]);
 
   useEffect(() => {
-    fetchSettings();
+    const fetchServices = async () => {
+      const { data } = await supabase.from("services").select("id, name").eq("is_visible", true).order("display_order", { ascending: true }).limit(5);
+      if (data) setServices(data);
+    };
     fetchServices();
   }, []);
-
-  const fetchSettings = async () => {
-    const { data } = await supabase.from("site_settings").select("key, value");
-    if (data) {
-      const settingsObj: Settings = {};
-      data.forEach((item) => { settingsObj[item.key] = item.value; });
-      setS(settingsObj);
-    }
-  };
-
-  const fetchServices = async () => {
-    const { data } = await supabase.from("services").select("id, name").eq("is_visible", true).order("display_order", { ascending: true }).limit(5);
-    if (data) setServices(data);
-  };
 
   const socialLinks = [
     { icon: Facebook, url: s.facebook_link, name: "Facebook" },

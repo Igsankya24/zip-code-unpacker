@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ExternalLink, Image } from "lucide-react";
+import { Plus, Pencil, Trash2, ExternalLink, Image, Crop, X } from "lucide-react";
+import ImageCropper from "@/components/ImageCropper";
 
 interface Service {
   id: string;
@@ -56,6 +57,10 @@ const AdminServiceProjects = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ServiceProject | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     service_id: "",
     title: "",
@@ -173,6 +178,52 @@ const AdminServiceProjects = () => {
     }
   };
 
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Error", description: "Please select an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 10MB", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempImageSrc(reader.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  const handleCroppedImage = async (blob: Blob) => {
+    setUploading(true);
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("project-images")
+      .upload(fileName, blob, { contentType: "image/jpeg" });
+
+    if (uploadError) {
+      toast({ title: "Error", description: "Failed to upload image. Bucket may not exist.", variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("project-images")
+      .getPublicUrl(fileName);
+
+    setFormData({ ...formData, image_url: urlData.publicUrl });
+    setUploading(false);
+    toast({ title: "Success", description: "Image uploaded" });
+  };
+
   if (loading) {
     return <div className="p-6">Loading...</div>;
   }
@@ -235,11 +286,46 @@ const AdminServiceProjects = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Image URL</Label>
+                <Label>Image</Label>
+                <div className="flex items-center gap-2">
+                  {formData.image_url && (
+                    <img src={formData.image_url} alt="Preview" className="w-16 h-16 object-cover rounded" />
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      <Crop className="w-4 h-4 mr-2" />
+                      {uploading ? "Uploading..." : "Upload & Crop"}
+                    </Button>
+                    {formData.image_url && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFormData({ ...formData, image_url: "" })}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 <Input
                   value={formData.image_url}
                   onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="https://example.com/image.jpg"
+                  placeholder="Or enter image URL directly"
+                  className="text-sm"
                 />
               </div>
 
@@ -347,6 +433,16 @@ const AdminServiceProjects = () => {
           </Table>
         )}
       </CardContent>
+
+      {/* Image Cropper */}
+      <ImageCropper
+        open={cropperOpen}
+        onClose={() => setCropperOpen(false)}
+        imageSrc={tempImageSrc}
+        onCropComplete={handleCroppedImage}
+        aspectRatio={16 / 9}
+        circularCrop={false}
+      />
     </Card>
   );
 };

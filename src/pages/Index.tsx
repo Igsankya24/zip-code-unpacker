@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import ServiceCard from "@/components/ServiceCard";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import {
   HardDrive, RefreshCw, KeyRound, Wrench, Shield, Zap, ArrowRight, Phone, Clock, Award,
   Globe, Laptop, Database, Settings, Wifi, LucideIcon,
@@ -20,18 +21,13 @@ const iconMap: Record<string, LucideIcon> = {
   HardDrive, RefreshCw, KeyRound, Wrench, Shield, Zap, Globe, Laptop, Database, Settings, Wifi,
 };
 
-interface SiteSettings {
-  [key: string]: string;
-}
-
 const Index = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [s, setS] = useState<SiteSettings>({});
+  const { settings: s } = useSiteSettings();
 
   useEffect(() => {
     fetchServices();
-    fetchSettings();
   }, []);
 
   const fetchServices = async () => {
@@ -43,15 +39,6 @@ const Index = () => {
       .limit(4);
     if (data) setServices(data);
     setLoading(false);
-  };
-
-  const fetchSettings = async () => {
-    const { data } = await supabase.from("site_settings").select("key, value");
-    if (data) {
-      const settingsObj: SiteSettings = {};
-      data.forEach((item) => { settingsObj[item.key] = item.value; });
-      setS(settingsObj);
-    }
   };
 
   const stats = [

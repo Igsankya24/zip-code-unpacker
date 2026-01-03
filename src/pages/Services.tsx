@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import ServiceCard from "@/components/ServiceCard";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { Monitor, Smartphone, Globe, Shield, Database, Headphones, Code, Server, Cloud, Lock, Zap, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -33,6 +34,7 @@ const iconMap: Record<string, LucideIcon> = {
 const Services = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const { settings: s } = useSiteSettings();
 
   useEffect(() => {
     fetchServices();
@@ -58,10 +60,10 @@ const Services = () => {
         <section className="py-20 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-              Our Services
+              {s.services_hero_title || "Our Services"}
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Comprehensive technology solutions tailored to meet your business needs and drive digital transformation.
+              {s.services_hero_desc || "Comprehensive technology solutions tailored to meet your business needs and drive digital transformation."}
             </p>
           </div>
         </section>
@@ -99,16 +101,16 @@ const Services = () => {
         <section className="py-16 bg-primary/5">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold text-foreground mb-4">
-              Ready to Get Started?
+              {s.services_cta_title || "Ready to Get Started?"}
             </h2>
             <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-              Contact us today to discuss your project requirements and get a free consultation.
+              {s.services_cta_desc || "Contact us today to discuss your project requirements and get a free consultation."}
             </p>
             <a
               href="/contact"
               className="inline-flex items-center justify-center px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
             >
-              Contact Us
+              {s.services_cta_btn || "Contact Us"}
             </a>
           </div>
         </section>
