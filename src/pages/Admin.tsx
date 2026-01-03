@@ -29,7 +29,8 @@ import {
   Wrench,
   Key,
   ShieldAlert,
-  FolderOpen
+  FolderOpen,
+  UserCheck
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -50,6 +51,7 @@ import AdminTechnicians from "@/components/admin/AdminTechnicians";
 import AdminApiKeys from "@/components/admin/AdminApiKeys";
 import AdminServiceProjects from "@/components/admin/AdminServiceProjects";
 import TrafficAnalytics from "@/components/admin/TrafficAnalytics";
+import AdminTeamMembers from "@/components/admin/AdminTeamMembers";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -68,7 +70,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type AdminTab = "dashboard" | "analytics" | "traffic" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys";
+type AdminTab = "dashboard" | "analytics" | "traffic" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys" | "team-members";
 
 interface DashboardStats {
   totalUsers: number;
@@ -556,6 +558,7 @@ const Admin = () => {
     { id: "user-access" as AdminTab, label: "User Access", icon: Lock, visible: permissions.can_manage_users },
     { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot, visible: permissions.can_view_settings },
     { id: "customization" as AdminTab, label: "Website Customization", icon: Paintbrush, visible: isSuperAdmin },
+    { id: "team-members" as AdminTab, label: "Team Members", icon: UserCheck, visible: isSuperAdmin },
     { id: "user-permissions" as AdminTab, label: "User Roles", icon: UserCog, visible: isSuperAdmin },
     { id: "permissions" as AdminTab, label: "Admin Permissions", icon: Shield, visible: isSuperAdmin },
     { id: "api-keys" as AdminTab, label: "API Keys", icon: Key, visible: isSuperAdmin },
@@ -779,6 +782,8 @@ const Admin = () => {
         return isSuperAdmin ? <AdminDeletionRequests /> : null;
       case "customization":
         return isSuperAdmin ? <AdminCustomization /> : null;
+      case "team-members":
+        return isSuperAdmin ? <AdminTeamMembers /> : null;
       case "user-permissions":
         return isSuperAdmin ? <AdminUserPermissions /> : null;
       case "profile":

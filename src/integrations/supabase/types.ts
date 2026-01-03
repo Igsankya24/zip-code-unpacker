@@ -641,6 +641,54 @@ export type Database = {
         }
         Relationships: []
       }
+      team_members: {
+        Row: {
+          bio: string | null
+          created_at: string
+          display_order: number | null
+          email: string | null
+          id: string
+          is_visible: boolean | null
+          linkedin_url: string | null
+          name: string
+          phone: string | null
+          photo_url: string | null
+          role: string
+          twitter_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          display_order?: number | null
+          email?: string | null
+          id?: string
+          is_visible?: boolean | null
+          linkedin_url?: string | null
+          name: string
+          phone?: string | null
+          photo_url?: string | null
+          role: string
+          twitter_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          display_order?: number | null
+          email?: string | null
+          id?: string
+          is_visible?: boolean | null
+          linkedin_url?: string | null
+          name?: string
+          phone?: string | null
+          photo_url?: string | null
+          role?: string
+          twitter_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       technicians: {
         Row: {
           address: string | null
