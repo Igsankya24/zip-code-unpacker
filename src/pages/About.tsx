@@ -193,47 +193,62 @@ const About = () => {
               </h2>
             </div>
 
-            <div className={`grid gap-6 md:gap-8 ${teamMembers.length === 1 ? 'max-w-md mx-auto' : teamMembers.length === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-              {teamMembers.map((member) => (
-                <div key={member.id} className="bg-card rounded-2xl p-6 md:p-8 text-center card-shadow border border-border/50">
-                  <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mx-auto mb-4 md:mb-6 overflow-hidden">
-                    {member.photo_url ? (
-                      <img src={member.photo_url} alt={member.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-3xl md:text-4xl font-bold text-primary">
-                        {member.name.charAt(0).toUpperCase()}
-                      </span>
+            <div className={`grid gap-4 md:gap-6 ${
+              teamMembers.length === 1 ? 'max-w-sm mx-auto' : 
+              teamMembers.length === 2 ? 'grid-cols-2 max-w-2xl mx-auto' : 
+              'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+            }`}>
+              {teamMembers.map((member) => {
+                const cardShape = s.team_card_shape || "rounded";
+                const photoShape = cardShape === "circle" ? "rounded-full" : 
+                                   cardShape === "square" ? "rounded-none" : "rounded-xl";
+                const cardRadius = cardShape === "circle" ? "rounded-3xl" : 
+                                   cardShape === "square" ? "rounded-none" : "rounded-xl";
+                
+                return (
+                  <div 
+                    key={member.id} 
+                    className={`bg-card ${cardRadius} p-4 text-center card-shadow border border-border/50 hover:shadow-lg transition-shadow`}
+                  >
+                    <div className={`w-16 h-16 md:w-20 md:h-20 ${photoShape} bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mx-auto mb-3 overflow-hidden`}>
+                      {member.photo_url ? (
+                        <img src={member.photo_url} alt={member.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xl md:text-2xl font-bold text-primary">
+                          {member.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-display font-bold text-sm md:text-base text-foreground mb-0.5">{member.name}</h3>
+                    <p className="text-primary text-xs md:text-sm mb-2">{member.role}</p>
+                    {member.bio && (
+                      <p className="text-muted-foreground text-xs mb-3 line-clamp-2">{member.bio}</p>
                     )}
+                    <div className="flex items-center justify-center gap-2">
+                      {member.email && (
+                        <a href={`mailto:${member.email}`} className="p-1.5 rounded-full bg-muted hover:bg-primary/10 transition-colors">
+                          <Mail className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                        </a>
+                      )}
+                      {member.phone && (
+                        <a href={`tel:${member.phone}`} className="p-1.5 rounded-full bg-muted hover:bg-primary/10 transition-colors">
+                          <Phone className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                        </a>
+                      )}
+                      {member.linkedin_url && (
+                        <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-full bg-muted hover:bg-primary/10 transition-colors">
+                          <Linkedin className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                        </a>
+                      )}
+                      {member.twitter_url && (
+                        <a href={member.twitter_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-full bg-muted hover:bg-primary/10 transition-colors">
+                          <Twitter className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="font-display font-bold text-lg md:text-xl text-foreground mb-1">{member.name}</h3>
-                  <p className="text-primary text-sm md:text-base mb-3">{member.role}</p>
-                  {member.bio && (
-                    <p className="text-muted-foreground text-sm mb-4">{member.bio}</p>
-                  )}
-                  <div className="flex items-center justify-center gap-3">
-                    {member.email && (
-                      <a href={`mailto:${member.email}`} className="p-2 rounded-full bg-muted hover:bg-primary/10 transition-colors">
-                        <Mail className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                      </a>
-                    )}
-                    {member.phone && (
-                      <a href={`tel:${member.phone}`} className="p-2 rounded-full bg-muted hover:bg-primary/10 transition-colors">
-                        <Phone className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                      </a>
-                    )}
-                    {member.linkedin_url && (
-                      <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-muted hover:bg-primary/10 transition-colors">
-                        <Linkedin className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                      </a>
-                    )}
-                    {member.twitter_url && (
-                      <a href={member.twitter_url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-muted hover:bg-primary/10 transition-colors">
-                        <Twitter className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>

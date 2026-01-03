@@ -8,6 +8,23 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, Pencil, Trash2, Eye, EyeOff, GripVertical, Send } from "lucide-react";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,6 +51,80 @@ const iconOptions = [
   "Code", "Server", "Cloud", "Lock", "Zap", "Settings"
 ];
 
+const SortableServiceRow = ({
+  service,
+  onEdit,
+  onToggleVisibility,
+  onDelete,
+  isSuperAdmin,
+  canManageServices,
+}: {
+  service: Service;
+  onEdit: (service: Service) => void;
+  onToggleVisibility: (service: Service) => void;
+  onDelete: (service: Service) => void;
+  isSuperAdmin: boolean;
+  canManageServices: boolean;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: service.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className="border-t border-border hover:bg-muted/30">
+      <td className="p-4">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </td>
+      <td className="p-4">
+        <div>
+          <p className="font-medium text-foreground">{service.name}</p>
+          <p className="text-sm text-muted-foreground line-clamp-1">{service.description}</p>
+        </div>
+      </td>
+      <td className="p-4 hidden md:table-cell">
+        <span className="text-sm text-muted-foreground">{service.icon}</span>
+      </td>
+      <td className="p-4">
+        <span className="font-medium text-foreground">{service.price ? `₹${service.price}` : "-"}</span>
+      </td>
+      <td className="p-4">
+        <button
+          onClick={() => onToggleVisibility(service)}
+          className={`p-2 rounded-lg ${service.is_visible ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}
+          title={service.is_visible ? "Click to hide" : "Click to show"}
+        >
+          {service.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
+      </td>
+      <td className="p-4">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => onEdit(service)} title="Edit">
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(service)}
+            title={isSuperAdmin || canManageServices ? "Delete" : "Request deletion"}
+          >
+            {isSuperAdmin || canManageServices ? (
+              <Trash2 className="w-4 h-4 text-destructive" />
+            ) : (
+              <Send className="w-4 h-4 text-orange-500" />
+            )}
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
 const AdminServices = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +146,11 @@ const AdminServices = () => {
   const { toast } = useToast();
   const { user, isSuperAdmin, permissions } = useAuth();
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   useEffect(() => {
     fetchServices();
   }, []);
@@ -72,6 +168,21 @@ const AdminServices = () => {
       setServices(data || []);
     }
     setLoading(false);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = services.findIndex((s) => s.id === active.id);
+      const newIndex = services.findIndex((s) => s.id === over.id);
+      const newOrder = arrayMove(services, oldIndex, newIndex);
+      setServices(newOrder);
+
+      for (let i = 0; i < newOrder.length; i++) {
+        await supabase.from("services").update({ display_order: i }).eq("id", newOrder[i].id);
+      }
+      toast({ title: "Success", description: "Order updated" });
+    }
   };
 
   const resetForm = () => {
@@ -313,82 +424,46 @@ const AdminServices = () => {
         </Dialog>
       </div>
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-4 text-left text-sm font-medium">Order</th>
-                <th className="p-4 text-left text-sm font-medium">Name</th>
-                <th className="p-4 text-left text-sm font-medium hidden md:table-cell">Icon</th>
-                <th className="p-4 text-left text-sm font-medium">Price</th>
-                <th className="p-4 text-left text-sm font-medium">Visible</th>
-                <th className="p-4 text-left text-sm font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {services.map((service, index) => (
-                <tr key={service.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="p-4">
-                    <GripVertical className="w-4 h-4 text-muted-foreground" />
-                  </td>
-                  <td className="p-4">
-                    <div>
-                      <p className="font-medium text-foreground">{service.name}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-1">
-                        {service.description}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="p-4 hidden md:table-cell">
-                    <span className="text-sm text-muted-foreground">{service.icon}</span>
-                  </td>
-                  <td className="p-4">
-                    <span className="font-medium text-foreground">
-                      {service.price ? `₹${service.price}` : "-"}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <button
-                      onClick={() => toggleVisibility(service)}
-                      className={`p-2 rounded-lg ${service.is_visible ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}
-                      title={service.is_visible ? "Click to hide" : "Click to show"}
-                    >
-                      {service.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </button>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(service)} title="Edit">
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleDeleteClick(service)} 
-                        title={isSuperAdmin || permissions.can_manage_services ? "Delete" : "Request deletion"}
-                      >
-                        {isSuperAdmin || permissions.can_manage_services ? (
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        ) : (
-                          <Send className="w-4 h-4 text-orange-500" />
-                        )}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {services.length === 0 && (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted/50">
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                    No services found. Add your first service!
-                  </td>
+                  <th className="p-4 text-left text-sm font-medium">Order</th>
+                  <th className="p-4 text-left text-sm font-medium">Name</th>
+                  <th className="p-4 text-left text-sm font-medium hidden md:table-cell">Icon</th>
+                  <th className="p-4 text-left text-sm font-medium">Price</th>
+                  <th className="p-4 text-left text-sm font-medium">Visible</th>
+                  <th className="p-4 text-left text-sm font-medium">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <SortableContext items={services.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                <tbody>
+                  {services.map((service) => (
+                    <SortableServiceRow
+                      key={service.id}
+                      service={service}
+                      onEdit={openEditDialog}
+                      onToggleVisibility={toggleVisibility}
+                      onDelete={handleDeleteClick}
+                      isSuperAdmin={isSuperAdmin}
+                      canManageServices={permissions.can_manage_services || false}
+                    />
+                  ))}
+                  {services.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        No services found. Add your first service!
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </SortableContext>
+            </table>
+          </div>
         </div>
-      </div>
+      </DndContext>
 
       {/* Deletion Request Dialog */}
       <Dialog open={deleteRequestDialog} onOpenChange={setDeleteRequestDialog}>
