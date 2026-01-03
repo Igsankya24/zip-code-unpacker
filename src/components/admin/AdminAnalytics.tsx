@@ -31,6 +31,7 @@ import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, parseISO 
 import { exportToExcel, exportToPDF, exportToWord } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import html2canvas from "html2canvas";
+import WebsiteTrafficCard from "./WebsiteTrafficCard";
 
 interface AppointmentData {
   date: string;
@@ -467,6 +468,9 @@ const AdminAnalytics = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Website Traffic Card */}
+      <WebsiteTrafficCard />
 
       <Tabs defaultValue="appointments" className="w-full">
         <TabsList>

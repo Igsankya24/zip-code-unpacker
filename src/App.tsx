@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { MaintenanceProvider } from "@/hooks/useMaintenanceMode";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { useSiteMetadata } from "@/hooks/useSiteMetadata";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Index from "./pages/Index";
 import Services from "./pages/Services";
 import About from "./pages/About";
@@ -21,6 +22,7 @@ const queryClient = new QueryClient();
 
 const SiteMetadataLoader = ({ children }: { children: React.ReactNode }) => {
   useSiteMetadata();
+  usePageTracking();
   return <>{children}</>;
 };
 
