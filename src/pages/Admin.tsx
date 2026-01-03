@@ -23,6 +23,7 @@ import {
   Paintbrush,
   UserCog,
   BarChart3,
+  Globe,
   Lock,
   FileText,
   Wrench,
@@ -48,6 +49,7 @@ import AdminInvoices from "@/components/admin/AdminInvoices";
 import AdminTechnicians from "@/components/admin/AdminTechnicians";
 import AdminApiKeys from "@/components/admin/AdminApiKeys";
 import AdminServiceProjects from "@/components/admin/AdminServiceProjects";
+import TrafficAnalytics from "@/components/admin/TrafficAnalytics";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -66,7 +68,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type AdminTab = "dashboard" | "analytics" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys";
+type AdminTab = "dashboard" | "analytics" | "traffic" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys";
 
 interface DashboardStats {
   totalUsers: number;
@@ -542,6 +544,7 @@ const Admin = () => {
   const allTabs = [
     { id: "dashboard" as AdminTab, label: "Dashboard", icon: LayoutDashboard, visible: true },
     { id: "analytics" as AdminTab, label: "Analytics", icon: BarChart3, visible: isSuperAdmin },
+    { id: "traffic" as AdminTab, label: "Traffic", icon: Globe, visible: isSuperAdmin },
     { id: "services" as AdminTab, label: "Services", icon: Briefcase, visible: permissions.can_view_services },
     { id: "service-projects" as AdminTab, label: "Service Projects", icon: FolderOpen, visible: permissions.can_view_services },
     { id: "appointments" as AdminTab, label: "Appointments", icon: Calendar, visible: permissions.can_view_appointments },
@@ -746,6 +749,8 @@ const Admin = () => {
         );
       case "analytics":
         return isSuperAdmin ? <AdminAnalytics /> : null;
+      case "traffic":
+        return isSuperAdmin ? <TrafficAnalytics /> : null;
       case "services":
         return <AdminServices />;
       case "service-projects":

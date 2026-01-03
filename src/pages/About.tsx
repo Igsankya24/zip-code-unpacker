@@ -66,7 +66,7 @@ const About = () => {
               <span className="gradient-text">{s.about_hero_highlight || "Tech Partner"}</span>
             </h1>
             <p className="text-base md:text-lg text-hero-foreground/70 max-w-2xl mx-auto px-4">
-              {s.about_hero_desc || "Krishna Tech Solutions has been providing reliable tech services since 2019. We're passionate about solving technology problems."}
+              {s.about_hero_desc || "Krishna Tech Solutions has been providing reliable tech services since 2022. We're passionate about solving technology problems."}
             </p>
           </div>
         </div>

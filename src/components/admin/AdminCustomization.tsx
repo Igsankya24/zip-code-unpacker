@@ -147,9 +147,9 @@ const AdminCustomization = () => {
                 <div className="space-y-2">
                   <Label>Hero Badge Text</Label>
                   <Input
-                    value={settings.hero_badge || "Trusted Tech Solutions Since 2019"}
+                    value={settings.hero_badge || "Trusted Tech Solutions Since 2022"}
                     onChange={(e) => updateSetting("hero_badge", e.target.value)}
-                    placeholder="Trusted Tech Solutions Since 2019"
+                    placeholder="Trusted Tech Solutions Since 2022"
                   />
                 </div>
                 <div className="space-y-2">
@@ -394,7 +394,7 @@ const AdminCustomization = () => {
                 <div className="space-y-2">
                   <Label>Description</Label>
                   <Textarea
-                    value={settings.about_hero_desc || "Krishna Tech Solutions has been providing reliable tech services since 2019. We're passionate about solving technology problems."}
+                    value={settings.about_hero_desc || "Krishna Tech Solutions has been providing reliable tech services since 2022. We're passionate about solving technology problems."}
                     onChange={(e) => updateSetting("about_hero_desc", e.target.value)}
                     rows={2}
                   />

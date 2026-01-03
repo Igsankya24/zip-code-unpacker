@@ -80,7 +80,7 @@ const Index = () => {
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-fade-in">
               <span className="inline-block px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-primary/20 text-primary text-xs md:text-sm font-medium mb-6 md:mb-8">
-                {s.hero_badge || "Trusted Tech Solutions Since 2019"}
+                {s.hero_badge || "Trusted Tech Solutions Since 2022"}
               </span>
             </div>
 
