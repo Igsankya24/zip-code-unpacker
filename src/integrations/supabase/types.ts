@@ -164,6 +164,84 @@ export type Database = {
           },
         ]
       }
+      blog_ads: {
+        Row: {
+          ad_code: string
+          created_at: string
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          placement: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ad_code: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          placement?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ad_code?: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          placement?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      blog_posts: {
+        Row: {
+          author_name: string
+          content: string
+          created_at: string
+          excerpt: string | null
+          featured_image: string | null
+          id: string
+          is_published: boolean | null
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+          views_count: number | null
+        }
+        Insert: {
+          author_name?: string
+          content: string
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          id?: string
+          is_published?: boolean | null
+          published_at?: string | null
+          slug: string
+          title: string
+          updated_at?: string
+          views_count?: number | null
+        }
+        Update: {
+          author_name?: string
+          content?: string
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          id?: string
+          is_published?: boolean | null
+          published_at?: string | null
+          slug?: string
+          title?: string
+          updated_at?: string
+          views_count?: number | null
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           created_at: string | null
@@ -725,6 +803,48 @@ export type Database = {
           photo_url?: string | null
           specialization?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      testimonials: {
+        Row: {
+          avatar_url: string | null
+          company: string | null
+          content: string
+          created_at: string
+          display_order: number | null
+          id: string
+          is_visible: boolean | null
+          name: string
+          rating: number | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          company?: string | null
+          content: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_visible?: boolean | null
+          name: string
+          rating?: number | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          company?: string | null
+          content?: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_visible?: boolean | null
+          name?: string
+          rating?: number | null
+          role?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
