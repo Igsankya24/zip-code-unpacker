@@ -173,6 +173,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           placement: string
+          post_id: string | null
           title: string
           updated_at: string
         }
@@ -184,6 +185,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           placement?: string
+          post_id?: string | null
           title: string
           updated_at?: string
         }
@@ -195,10 +197,19 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           placement?: string
+          post_id?: string | null
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "blog_ads_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       blog_categories: {
         Row: {

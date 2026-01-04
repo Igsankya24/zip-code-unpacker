@@ -45,10 +45,18 @@ interface BlogAd {
   ad_type: string;
   is_active: boolean;
   display_order: number;
+  post_id: string | null;
+}
+
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
 }
 
 const AdminBlogAds = () => {
   const [ads, setAds] = useState<BlogAd[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BlogAd | null>(null);
@@ -58,6 +66,7 @@ const AdminBlogAds = () => {
     placement: "sidebar",
     ad_type: "custom",
     is_active: true,
+    post_id: "" as string | null,
   });
   const { toast } = useToast();
 
@@ -68,7 +77,16 @@ const AdminBlogAds = () => {
 
   useEffect(() => {
     fetchAds();
+    fetchPosts();
   }, []);
+
+  const fetchPosts = async () => {
+    const { data } = await supabase
+      .from("blog_posts")
+      .select("id, title, slug")
+      .order("title", { ascending: true });
+    if (data) setPosts(data);
+  };
 
   const fetchAds = async () => {
     const { data, error } = await supabase
@@ -105,10 +123,12 @@ const AdminBlogAds = () => {
         resetForm();
       }
     } else {
-      const { error } = await supabase.from("blog_ads").insert([{
+      const insertData = {
         ...formData,
+        post_id: formData.post_id || null,
         display_order: ads.length,
-      }]);
+      };
+      const { error } = await supabase.from("blog_ads").insert([insertData]);
 
       if (error) {
         toast({ title: "Error creating ad", description: error.message, variant: "destructive" });
@@ -171,6 +191,7 @@ const AdminBlogAds = () => {
       placement: "sidebar",
       ad_type: "custom",
       is_active: true,
+      post_id: "",
     });
     setEditingAd(null);
   };
@@ -183,8 +204,15 @@ const AdminBlogAds = () => {
       placement: ad.placement,
       ad_type: ad.ad_type || "custom",
       is_active: ad.is_active,
+      post_id: ad.post_id || "",
     });
     setDialogOpen(true);
+  };
+
+  const getPostTitle = (postId: string | null) => {
+    if (!postId) return "All Posts";
+    const post = posts.find((p) => p.id === postId);
+    return post ? post.title : "Unknown Post";
   };
 
   const getPlacementLabel = (placement: string) => {
@@ -272,6 +300,25 @@ const AdminBlogAds = () => {
                 </div>
               </div>
 
+              <div>
+                <Label>Show on Post (optional)</Label>
+                <Select
+                  value={formData.post_id || "all"}
+                  onValueChange={(value) => setFormData({ ...formData, post_id: value === "all" ? "" : value })}
+                >
+                  <SelectTrigger><SelectValue placeholder="All Posts" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Posts (Global)</SelectItem>
+                    {posts.map((post) => (
+                      <SelectItem key={post.id} value={post.id}>{post.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leave as "All Posts" to show on every blog post, or select a specific post.
+                </p>
+              </div>
+
               {formData.ad_type === "adsense" && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
@@ -352,6 +399,9 @@ const AdminBlogAds = () => {
                         ) : (
                           <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Inactive</span>
                         )}
+                        <span className="text-xs bg-purple-500/20 text-purple-500 px-2 py-0.5 rounded-full">
+                          {getPostTitle(ad.post_id)}
+                        </span>
                       </div>
                       <p className="text-sm text-muted-foreground font-mono truncate max-w-md mt-1">
                         {ad.ad_code.substring(0, 60)}...

@@ -37,6 +37,7 @@ interface BlogAd {
   ad_code: string;
   placement: string;
   ad_type: string;
+  post_id: string | null;
 }
 
 const BlogPostPage = () => {
@@ -57,9 +58,15 @@ const BlogPostPage = () => {
   useEffect(() => {
     if (slug) {
       fetchPost();
-      fetchAds();
     }
   }, [slug]);
+
+  // Fetch ads when post is loaded
+  useEffect(() => {
+    if (post) {
+      fetchAds(post.id);
+    }
+  }, [post?.id]);
 
   // Execute ad scripts
   useEffect(() => {
@@ -124,7 +131,7 @@ const BlogPostPage = () => {
     setLoading(false);
   };
 
-  const fetchAds = async () => {
+  const fetchAds = async (postId: string) => {
     const { data } = await supabase
       .from("blog_ads")
       .select("*")
@@ -132,11 +139,14 @@ const BlogPostPage = () => {
       .order("display_order", { ascending: true });
 
     if (data) {
+      // Filter ads: show global ads (post_id is null) or ads specific to this post
+      const relevantAds = data.filter((a) => a.post_id === null || a.post_id === postId);
+      
       setAds({
-        header: data.filter((a) => a.placement === "header"),
-        inContent: data.filter((a) => a.placement === "in-content"),
-        footer: data.filter((a) => a.placement === "footer"),
-        sidebar: data.filter((a) => a.placement === "sidebar"),
+        header: relevantAds.filter((a) => a.placement === "header"),
+        inContent: relevantAds.filter((a) => a.placement === "in-content"),
+        footer: relevantAds.filter((a) => a.placement === "footer"),
+        sidebar: relevantAds.filter((a) => a.placement === "sidebar"),
       });
     }
   };
