@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, GripVertical, Code, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Code, AlertCircle, BarChart3, Eye, MousePointerClick } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableItem } from "@/components/SortableItem";
@@ -54,6 +55,13 @@ interface BlogPost {
   slug: string;
 }
 
+interface AdAnalytics {
+  ad_id: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+}
+
 const AdminBlogAds = () => {
   const [ads, setAds] = useState<BlogAd[]>([]);
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -68,6 +76,8 @@ const AdminBlogAds = () => {
     is_active: true,
     post_id: "" as string | null,
   });
+  const [analytics, setAnalytics] = useState<AdAnalytics[]>([]);
+  const [activeTab, setActiveTab] = useState("ads");
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -78,6 +88,7 @@ const AdminBlogAds = () => {
   useEffect(() => {
     fetchAds();
     fetchPosts();
+    fetchAnalytics();
   }, []);
 
   const fetchPosts = async () => {
@@ -100,6 +111,48 @@ const AdminBlogAds = () => {
       setAds(data || []);
     }
     setLoading(false);
+  };
+
+  const fetchAnalytics = async () => {
+    // Get all analytics data grouped by ad_id
+    const { data: impressionData } = await supabase
+      .from("blog_ad_analytics")
+      .select("ad_id")
+      .eq("event_type", "impression");
+
+    const { data: clickData } = await supabase
+      .from("blog_ad_analytics")
+      .select("ad_id")
+      .eq("event_type", "click");
+
+    // Group by ad_id and count
+    const impressionCounts: { [key: string]: number } = {};
+    const clickCounts: { [key: string]: number } = {};
+
+    (impressionData || []).forEach((row) => {
+      impressionCounts[row.ad_id] = (impressionCounts[row.ad_id] || 0) + 1;
+    });
+
+    (clickData || []).forEach((row) => {
+      clickCounts[row.ad_id] = (clickCounts[row.ad_id] || 0) + 1;
+    });
+
+    // Build analytics array
+    const allAdIds = new Set([...Object.keys(impressionCounts), ...Object.keys(clickCounts)]);
+    const analyticsData: AdAnalytics[] = [];
+    
+    allAdIds.forEach((adId) => {
+      const impressions = impressionCounts[adId] || 0;
+      const clicks = clickCounts[adId] || 0;
+      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+      analyticsData.push({ ad_id: adId, impressions, clicks, ctr });
+    });
+
+    setAnalytics(analyticsData);
+  };
+
+  const getAdAnalytics = (adId: string) => {
+    return analytics.find((a) => a.ad_id === adId) || { impressions: 0, clicks: 0, ctr: 0 };
   };
 
   const handleSubmit = async () => {
@@ -370,75 +423,177 @@ const AdminBlogAds = () => {
         </Dialog>
       </div>
 
-      {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading ads...</div>
-      ) : ads.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          No ads configured. Add your first ad slot!
-        </div>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={ads.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-3">
-              {ads.map((ad) => (
-                <SortableItem key={ad.id} id={ad.id}>
-                  <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-                    <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
-                    <Code className="w-5 h-5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-foreground">{ad.title}</h3>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${getAdTypeColor(ad.ad_type)}`}>
-                          {getAdTypeLabel(ad.ad_type)}
-                        </span>
-                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                          {getPlacementLabel(ad.placement)}
-                        </span>
-                        {ad.is_active ? (
-                          <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">Active</span>
-                        ) : (
-                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Inactive</span>
-                        )}
-                        <span className="text-xs bg-purple-500/20 text-purple-500 px-2 py-0.5 rounded-full">
-                          {getPostTitle(ad.post_id)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground font-mono truncate max-w-md mt-1">
-                        {ad.ad_code.substring(0, 60)}...
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={ad.is_active} onCheckedChange={() => toggleActive(ad)} />
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(ad)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Ad</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{ad.title}"? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(ad.id)}>Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </SortableItem>
-              ))}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList>
+          <TabsTrigger value="ads">
+            <Code className="w-4 h-4 mr-2" />
+            Manage Ads
+          </TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ads" className="mt-4">
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading ads...</div>
+          ) : ads.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No ads configured. Add your first ad slot!
             </div>
-          </SortableContext>
-        </DndContext>
-      )}
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={ads.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-3">
+                  {ads.map((ad) => {
+                    const adStats = getAdAnalytics(ad.id);
+                    return (
+                      <SortableItem key={ad.id} id={ad.id}>
+                        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
+                          <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
+                          <Code className="w-5 h-5 text-muted-foreground" />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-foreground">{ad.title}</h3>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${getAdTypeColor(ad.ad_type)}`}>
+                                {getAdTypeLabel(ad.ad_type)}
+                              </span>
+                              <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                                {getPlacementLabel(ad.placement)}
+                              </span>
+                              {ad.is_active ? (
+                                <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">Active</span>
+                              ) : (
+                                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Inactive</span>
+                              )}
+                              <span className="text-xs bg-purple-500/20 text-purple-500 px-2 py-0.5 rounded-full">
+                                {getPostTitle(ad.post_id)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />{adStats.impressions} impressions
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MousePointerClick className="w-3 h-3" />{adStats.clicks} clicks
+                              </span>
+                              <span className="text-primary font-medium">{adStats.ctr.toFixed(2)}% CTR</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={ad.is_active} onCheckedChange={() => toggleActive(ad)} />
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(ad)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Ad</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{ad.title}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(ad.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </SortableItem>
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-4">
+          <div className="space-y-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                  <Eye className="w-4 h-4" />
+                  <span className="text-sm">Total Impressions</span>
+                </div>
+                <p className="text-2xl font-bold text-foreground">
+                  {analytics.reduce((sum, a) => sum + a.impressions, 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                  <MousePointerClick className="w-4 h-4" />
+                  <span className="text-sm">Total Clicks</span>
+                </div>
+                <p className="text-2xl font-bold text-foreground">
+                  {analytics.reduce((sum, a) => sum + a.clicks, 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="text-sm">Average CTR</span>
+                </div>
+                <p className="text-2xl font-bold text-primary">
+                  {analytics.length > 0
+                    ? (analytics.reduce((sum, a) => sum + a.ctr, 0) / analytics.length).toFixed(2)
+                    : "0.00"}%
+                </p>
+              </div>
+            </div>
+
+            {/* Per-Ad Analytics */}
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-foreground">Ad Performance</h3>
+              </div>
+              <div className="divide-y divide-border">
+                {ads.map((ad) => {
+                  const stats = getAdAnalytics(ad.id);
+                  return (
+                    <div key={ad.id} className="p-4 flex items-center gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-foreground">{ad.title}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {getPlacementLabel(ad.placement)} • {getPostTitle(ad.post_id)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-6 text-sm">
+                        <div className="text-center">
+                          <p className="font-semibold text-foreground">{stats.impressions.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">Impressions</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-semibold text-foreground">{stats.clicks.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">Clicks</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-semibold text-primary">{stats.ctr.toFixed(2)}%</p>
+                          <p className="text-xs text-muted-foreground">CTR</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {ads.length === 0 && (
+                  <div className="p-8 text-center text-muted-foreground">
+                    No ads to show analytics for.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

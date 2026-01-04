@@ -193,11 +193,7 @@ const About = () => {
               </h2>
             </div>
 
-            <div className={`grid gap-4 md:gap-6 ${
-              teamMembers.length === 1 ? 'max-w-sm mx-auto' : 
-              teamMembers.length === 2 ? 'grid-cols-2 max-w-2xl mx-auto' : 
-              'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-            }`}>
+            <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {teamMembers.map((member) => {
                 const cardShape = s.team_card_shape || "rounded";
                 const photoShape = cardShape === "circle" ? "rounded-full" : 

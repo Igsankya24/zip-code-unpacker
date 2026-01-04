@@ -51,6 +51,7 @@ const ImageCropper = ({
   const [scale, setScale] = useState(1);
   const [rotate, setRotate] = useState(0);
   const imgRef = useRef<HTMLImageElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -69,51 +70,81 @@ const ImageCropper = ({
 
     if (!ctx) return;
 
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
+    // Get the natural size of the image
+    const naturalWidth = image.naturalWidth;
+    const naturalHeight = image.naturalHeight;
 
-    const outputWidth = completedCrop.width * scaleX;
-    const outputHeight = completedCrop.height * scaleY;
+    // Calculate the scale between displayed and natural size
+    const displayedWidth = image.width;
+    const displayedHeight = image.height;
+    const scaleX = naturalWidth / displayedWidth;
+    const scaleY = naturalHeight / displayedHeight;
 
+    // Calculate crop dimensions in natural image coordinates
+    const cropX = completedCrop.x * scaleX;
+    const cropY = completedCrop.y * scaleY;
+    const cropWidth = completedCrop.width * scaleX;
+    const cropHeight = completedCrop.height * scaleY;
+
+    // Set canvas size to the final crop size
+    const outputWidth = cropWidth;
+    const outputHeight = cropHeight;
     canvas.width = outputWidth;
     canvas.height = outputHeight;
 
     ctx.imageSmoothingQuality = "high";
 
-    const cropX = completedCrop.x * scaleX;
-    const cropY = completedCrop.y * scaleY;
+    // For rotation and scale, we need to transform the entire image first
+    // Create an offscreen canvas with the transformed image
+    const offscreenCanvas = document.createElement("canvas");
+    const offscreenCtx = offscreenCanvas.getContext("2d");
+    if (!offscreenCtx) return;
 
     const rotateRads = (rotate * Math.PI) / 180;
-    const centerX = outputWidth / 2;
-    const centerY = outputHeight / 2;
+    const cos = Math.abs(Math.cos(rotateRads));
+    const sin = Math.abs(Math.sin(rotateRads));
 
-    ctx.save();
+    // Calculate the size of the rotated image
+    const rotatedWidth = naturalWidth * cos + naturalHeight * sin;
+    const rotatedHeight = naturalWidth * sin + naturalHeight * cos;
 
+    offscreenCanvas.width = rotatedWidth * scale;
+    offscreenCanvas.height = rotatedHeight * scale;
+
+    offscreenCtx.imageSmoothingQuality = "high";
+
+    // Move to center, rotate, scale, and draw
+    offscreenCtx.translate(offscreenCanvas.width / 2, offscreenCanvas.height / 2);
+    offscreenCtx.rotate(rotateRads);
+    offscreenCtx.scale(scale, scale);
+    offscreenCtx.translate(-naturalWidth / 2, -naturalHeight / 2);
+    offscreenCtx.drawImage(image, 0, 0, naturalWidth, naturalHeight);
+
+    // Calculate the offset for the crop area on the transformed image
+    // The crop coordinates need to be adjusted for the transformation
+    const transformedCropX = cropX * scale + (offscreenCanvas.width - naturalWidth * scale) / 2;
+    const transformedCropY = cropY * scale + (offscreenCanvas.height - naturalHeight * scale) / 2;
+
+    // Apply circular crop mask if needed
     if (circularCrop) {
       ctx.beginPath();
-      ctx.arc(centerX, centerY, Math.min(outputWidth, outputHeight) / 2, 0, Math.PI * 2);
+      ctx.arc(outputWidth / 2, outputHeight / 2, Math.min(outputWidth, outputHeight) / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
     }
 
-    ctx.translate(centerX, centerY);
-    ctx.rotate(rotateRads);
-    ctx.scale(scale, scale);
-    ctx.translate(-centerX, -centerY);
-
+    // Draw the cropped portion from the offscreen canvas
     ctx.drawImage(
-      image,
-      cropX,
-      cropY,
-      outputWidth,
-      outputHeight,
+      offscreenCanvas,
+      transformedCropX,
+      transformedCropY,
+      cropWidth * scale,
+      cropHeight * scale,
       0,
       0,
       outputWidth,
       outputHeight
     );
-
-    ctx.restore();
 
     canvas.toBlob(
       (blob) => {
@@ -129,6 +160,15 @@ const ImageCropper = ({
 
   const handleRotate = () => {
     setRotate((prev) => (prev + 90) % 360);
+  };
+
+  const resetCrop = () => {
+    setScale(1);
+    setRotate(0);
+    if (imgRef.current) {
+      const { width, height } = imgRef.current;
+      setCrop(centerAspectCrop(width, height, aspectRatio));
+    }
   };
 
   return (
@@ -155,6 +195,7 @@ const ImageCropper = ({
                   transform: `scale(${scale}) rotate(${rotate}deg)`,
                   maxHeight: "400px",
                   maxWidth: "100%",
+                  transformOrigin: "center",
                 }}
                 onLoad={onImageLoad}
               />
@@ -182,8 +223,13 @@ const ImageCropper = ({
                 Rotate 90°
               </Button>
               <span className="text-sm text-muted-foreground">Current: {rotate}°</span>
+              <Button variant="ghost" size="sm" onClick={resetCrop} className="ml-auto">
+                Reset
+              </Button>
             </div>
           </div>
+
+          <canvas ref={previewCanvasRef} className="hidden" />
         </div>
 
         <DialogFooter className="gap-2">

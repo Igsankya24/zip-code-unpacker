@@ -40,6 +40,16 @@ interface BlogAd {
   post_id: string | null;
 }
 
+// Get or create a visitor ID for analytics
+const getVisitorId = () => {
+  let visitorId = localStorage.getItem("blog_visitor_id");
+  if (!visitorId) {
+    visitorId = `v_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    localStorage.setItem("blog_visitor_id", visitorId);
+  }
+  return visitorId;
+};
+
 const BlogPostPage = () => {
   const { slug } = useParams();
   const [post, setPost] = useState<BlogPost | null>(null);
@@ -53,6 +63,7 @@ const BlogPostPage = () => {
     sidebar: [],
   });
   const adRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const trackedImpressions = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,28 +79,58 @@ const BlogPostPage = () => {
     }
   }, [post?.id]);
 
-  // Execute ad scripts
+  // Track ad impressions and set up click tracking
   useEffect(() => {
-    Object.entries(ads).forEach(([, adList]) => {
-      adList.forEach((ad) => {
-        const container = adRefs.current[ad.id];
-        if (container && !container.dataset.loaded) {
-          container.innerHTML = ad.ad_code;
-          container.dataset.loaded = "true";
-          
-          const scripts = container.querySelectorAll("script");
-          scripts.forEach((script) => {
-            const newScript = document.createElement("script");
-            Array.from(script.attributes).forEach((attr) => {
-              newScript.setAttribute(attr.name, attr.value);
-            });
-            newScript.textContent = script.textContent;
-            script.parentNode?.replaceChild(newScript, script);
+    const allAds = [...ads.header, ...ads.inContent, ...ads.footer, ...ads.sidebar];
+    
+    allAds.forEach((ad) => {
+      const container = adRefs.current[ad.id];
+      if (container && !container.dataset.loaded) {
+        container.innerHTML = ad.ad_code;
+        container.dataset.loaded = "true";
+        
+        // Execute scripts
+        const scripts = container.querySelectorAll("script");
+        scripts.forEach((script) => {
+          const newScript = document.createElement("script");
+          Array.from(script.attributes).forEach((attr) => {
+            newScript.setAttribute(attr.name, attr.value);
           });
+          newScript.textContent = script.textContent;
+          script.parentNode?.replaceChild(newScript, script);
+        });
+
+        // Track impression (only once per ad per page load)
+        if (!trackedImpressions.current.has(ad.id) && post) {
+          trackAdEvent(ad.id, post.id, "impression");
+          trackedImpressions.current.add(ad.id);
         }
-      });
+
+        // Add click tracking
+        container.addEventListener("click", () => {
+          if (post) {
+            trackAdEvent(ad.id, post.id, "click");
+          }
+        });
+      }
     });
-  }, [ads]);
+  }, [ads, post]);
+
+  const trackAdEvent = async (adId: string, postId: string, eventType: "impression" | "click") => {
+    try {
+      await supabase.from("blog_ad_analytics").insert({
+        ad_id: adId,
+        post_id: postId,
+        event_type: eventType,
+        visitor_id: getVisitorId(),
+        user_agent: navigator.userAgent,
+        referrer: document.referrer || null,
+      });
+    } catch (error) {
+      // Silently fail - analytics shouldn't break the page
+      console.error("Failed to track ad event:", error);
+    }
+  };
 
   const fetchPost = async () => {
     const { data, error } = await supabase
