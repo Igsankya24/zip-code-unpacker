@@ -164,6 +164,54 @@ export type Database = {
           },
         ]
       }
+      blog_ad_analytics: {
+        Row: {
+          ad_id: string
+          created_at: string
+          event_type: string
+          id: string
+          post_id: string | null
+          referrer: string | null
+          user_agent: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          ad_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          post_id?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          ad_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          post_id?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_ad_analytics_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "blog_ads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_ad_analytics_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_ads: {
         Row: {
           ad_code: string
