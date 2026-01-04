@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Code, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableItem } from "@/components/SortableItem";
@@ -41,6 +42,7 @@ interface BlogAd {
   title: string;
   ad_code: string;
   placement: string;
+  ad_type: string;
   is_active: boolean;
   display_order: number;
 }
@@ -54,6 +56,7 @@ const AdminBlogAds = () => {
     title: "",
     ad_code: "",
     placement: "sidebar",
+    ad_type: "custom",
     is_active: true,
   });
   const { toast } = useToast();
@@ -151,7 +154,6 @@ const AdminBlogAds = () => {
 
     setAds(reordered);
 
-    // Update database
     const updates = reordered.map((ad, index) => ({
       id: ad.id,
       display_order: index,
@@ -167,6 +169,7 @@ const AdminBlogAds = () => {
       title: "",
       ad_code: "",
       placement: "sidebar",
+      ad_type: "custom",
       is_active: true,
     });
     setEditingAd(null);
@@ -178,6 +181,7 @@ const AdminBlogAds = () => {
       title: ad.title,
       ad_code: ad.ad_code,
       placement: ad.placement,
+      ad_type: ad.ad_type || "custom",
       is_active: ad.is_active,
     });
     setDialogOpen(true);
@@ -193,21 +197,35 @@ const AdminBlogAds = () => {
     }
   };
 
+  const getAdTypeLabel = (adType: string) => {
+    switch (adType) {
+      case "adsense": return "Google AdSense";
+      case "adsterra": return "Adsterra";
+      case "custom": return "Custom HTML";
+      default: return adType;
+    }
+  };
+
+  const getAdTypeColor = (adType: string) => {
+    switch (adType) {
+      case "adsense": return "bg-blue-500/20 text-blue-500";
+      case "adsterra": return "bg-orange-500/20 text-orange-500";
+      default: return "bg-muted text-muted-foreground";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Blog Ads</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage advertisement slots for your blog (like Google AdSense, affiliate ads, etc.)
+            Manage ads for your blog - supports AdSense, Adsterra, and custom HTML
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Ad
-            </Button>
+            <Button><Plus className="w-4 h-4 mr-2" />Add Ad</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -222,35 +240,73 @@ const AdminBlogAds = () => {
                   placeholder="Ad title (for reference)"
                 />
               </div>
-              <div>
-                <Label>Placement</Label>
-                <Select
-                  value={formData.placement}
-                  onValueChange={(value) => setFormData({ ...formData, placement: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sidebar">Sidebar</SelectItem>
-                    <SelectItem value="in-content">In Content (between paragraphs)</SelectItem>
-                    <SelectItem value="header">Header (top of post)</SelectItem>
-                    <SelectItem value="footer">Footer (bottom of post)</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Ad Network</Label>
+                  <Select
+                    value={formData.ad_type}
+                    onValueChange={(value) => setFormData({ ...formData, ad_type: value })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="adsense">Google AdSense</SelectItem>
+                      <SelectItem value="adsterra">Adsterra</SelectItem>
+                      <SelectItem value="custom">Custom HTML/JS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Placement</Label>
+                  <Select
+                    value={formData.placement}
+                    onValueChange={(value) => setFormData({ ...formData, placement: value })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sidebar">Sidebar</SelectItem>
+                      <SelectItem value="in-content">In Content (between paragraphs)</SelectItem>
+                      <SelectItem value="header">Header (top of post)</SelectItem>
+                      <SelectItem value="footer">Footer (bottom of post)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {formData.ad_type === "adsense" && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Paste your Google AdSense code below. Make sure you have added your site to AdSense and it is approved.
+                    Example: <code className="text-xs">&lt;ins class="adsbygoogle" data-ad-client="ca-pub-xxx" ...&gt;&lt;/ins&gt;</code>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {formData.ad_type === "adsterra" && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Paste your Adsterra ad code below. You can get this from your Adsterra dashboard under Websites → Get Code.
+                    Both banner and native ads are supported.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div>
                 <Label>Ad Code * (HTML/JavaScript)</Label>
                 <Textarea
                   value={formData.ad_code}
                   onChange={(e) => setFormData({ ...formData, ad_code: e.target.value })}
-                  placeholder="Paste your ad code here (AdSense, affiliate banners, etc.)"
-                  rows={8}
+                  placeholder={
+                    formData.ad_type === "adsense"
+                      ? "<!-- Paste your AdSense code here -->\n<ins class=\"adsbygoogle\"\n  style=\"display:block\"\n  data-ad-client=\"ca-pub-XXXXXXX\"\n  data-ad-slot=\"XXXXXXX\"\n  data-ad-format=\"auto\"></ins>\n<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>"
+                      : formData.ad_type === "adsterra"
+                        ? "<!-- Paste your Adsterra code here -->\n<script type=\"text/javascript\">\n  atOptions = { 'key' : 'xxx', 'format' : 'iframe', ... };\n</script>\n<script src=\"//www.xxx.com/xxx/invoke.js\"></script>"
+                        : "Paste your ad code here (HTML/JavaScript)"
+                  }
+                  rows={10}
                   className="font-mono text-sm"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Paste AdSense code, affiliate banners, or any HTML/JavaScript ad code
-                </p>
               </div>
               <div className="flex items-center gap-2">
                 <Switch
@@ -281,9 +337,13 @@ const AdminBlogAds = () => {
                 <SortableItem key={ad.id} id={ad.id}>
                   <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
                     <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
+                    <Code className="w-5 h-5 text-muted-foreground" />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-foreground">{ad.title}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getAdTypeColor(ad.ad_type)}`}>
+                          {getAdTypeLabel(ad.ad_type)}
+                        </span>
                         <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                           {getPlacementLabel(ad.placement)}
                         </span>
@@ -293,15 +353,12 @@ const AdminBlogAds = () => {
                           <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Inactive</span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground font-mono truncate max-w-md">
+                      <p className="text-sm text-muted-foreground font-mono truncate max-w-md mt-1">
                         {ad.ad_code.substring(0, 60)}...
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Switch
-                        checked={ad.is_active}
-                        onCheckedChange={() => toggleActive(ad)}
-                      />
+                      <Switch checked={ad.is_active} onCheckedChange={() => toggleActive(ad)} />
                       <Button variant="ghost" size="icon" onClick={() => openEditDialog(ad)}>
                         <Pencil className="w-4 h-4" />
                       </Button>
