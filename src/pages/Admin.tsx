@@ -30,7 +30,10 @@ import {
   Key,
   ShieldAlert,
   FolderOpen,
-  UserCheck
+  UserCheck,
+  Newspaper,
+  Star,
+  Megaphone
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -52,6 +55,9 @@ import AdminApiKeys from "@/components/admin/AdminApiKeys";
 import AdminServiceProjects from "@/components/admin/AdminServiceProjects";
 import TrafficAnalytics from "@/components/admin/TrafficAnalytics";
 import AdminTeamMembers from "@/components/admin/AdminTeamMembers";
+import AdminBlog from "@/components/admin/AdminBlog";
+import AdminBlogAds from "@/components/admin/AdminBlogAds";
+import AdminTestimonials from "@/components/admin/AdminTestimonials";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -70,7 +76,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type AdminTab = "dashboard" | "analytics" | "traffic" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys" | "team-members";
+type AdminTab = "dashboard" | "analytics" | "traffic" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys" | "team-members" | "blog" | "blog-ads" | "testimonials";
 
 interface DashboardStats {
   totalUsers: number;
@@ -556,6 +562,9 @@ const Admin = () => {
     { id: "users" as AdminTab, label: "Users", icon: Users, visible: permissions.can_view_users },
     { id: "coupons" as AdminTab, label: "Coupons", icon: Ticket, visible: permissions.can_view_coupons },
     { id: "user-access" as AdminTab, label: "User Access", icon: Lock, visible: permissions.can_manage_users },
+    { id: "blog" as AdminTab, label: "Blog Posts", icon: Newspaper, visible: isSuperAdmin },
+    { id: "blog-ads" as AdminTab, label: "Blog Ads", icon: Megaphone, visible: isSuperAdmin },
+    { id: "testimonials" as AdminTab, label: "Testimonials", icon: Star, visible: isSuperAdmin },
     { id: "bot" as AdminTab, label: "Bot Settings", icon: Bot, visible: permissions.can_view_settings },
     { id: "customization" as AdminTab, label: "Website Customization", icon: Paintbrush, visible: isSuperAdmin },
     { id: "team-members" as AdminTab, label: "Team Members", icon: UserCheck, visible: isSuperAdmin },
@@ -784,6 +793,12 @@ const Admin = () => {
         return isSuperAdmin ? <AdminCustomization /> : null;
       case "team-members":
         return isSuperAdmin ? <AdminTeamMembers /> : null;
+      case "blog":
+        return isSuperAdmin ? <AdminBlog /> : null;
+      case "blog-ads":
+        return isSuperAdmin ? <AdminBlogAds /> : null;
+      case "testimonials":
+        return isSuperAdmin ? <AdminTestimonials /> : null;
       case "user-permissions":
         return isSuperAdmin ? <AdminUserPermissions /> : null;
       case "profile":
