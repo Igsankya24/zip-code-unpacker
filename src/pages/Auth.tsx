@@ -79,6 +79,20 @@ const Auth = () => {
   // Detect if input is email or username
   const isEmail = (value: string) => value.includes("@");
 
+  // Look up email by username from profiles table
+  const getEmailByUsername = async (username: string): Promise<string | null> => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("email")
+      .ilike("username", username)
+      .maybeSingle();
+    
+    if (error || !data) {
+      return null;
+    }
+    return data.email;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -87,14 +101,19 @@ const Auth = () => {
       const rawLoginId = loginId.trim();
       let email = rawLoginId;
 
-      // If not email format, treat as username and convert to internal email
-      // Must match the exact normalization used when creating users.
-      if (!isEmail(email)) {
-        const normalizedUsername = rawLoginId
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, "");
-
-        email = `${normalizedUsername}@krishnatech.internal`;
+      // If not email format, look up the actual email from profiles using username
+      if (!isEmail(rawLoginId)) {
+        const foundEmail = await getEmailByUsername(rawLoginId);
+        if (!foundEmail) {
+          toast({
+            title: "Login Failed",
+            description: "Username not found",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        email = foundEmail;
       }
 
       const { error } = await signIn(email, password);
