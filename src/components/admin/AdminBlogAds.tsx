@@ -6,7 +6,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, GripVertical, Code, AlertCircle, BarChart3, Eye, MousePointerClick } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Code, AlertCircle, BarChart3, Eye, MousePointerClick, Calendar, RefreshCw } from "lucide-react";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +81,11 @@ const AdminBlogAds = () => {
   });
   const [analytics, setAnalytics] = useState<AdAnalytics[]>([]);
   const [activeTab, setActiveTab] = useState("ads");
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  });
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -113,17 +121,28 @@ const AdminBlogAds = () => {
     setLoading(false);
   };
 
-  const fetchAnalytics = async () => {
-    // Get all analytics data grouped by ad_id
+  const fetchAnalytics = async (fromDate?: Date, toDate?: Date) => {
+    setAnalyticsLoading(true);
+    const from = fromDate || dateRange.from;
+    const to = toDate || dateRange.to;
+    
+    const fromISO = startOfDay(from).toISOString();
+    const toISO = endOfDay(to).toISOString();
+
+    // Get all analytics data grouped by ad_id within date range
     const { data: impressionData } = await supabase
       .from("blog_ad_analytics")
       .select("ad_id")
-      .eq("event_type", "impression");
+      .eq("event_type", "impression")
+      .gte("created_at", fromISO)
+      .lte("created_at", toISO);
 
     const { data: clickData } = await supabase
       .from("blog_ad_analytics")
       .select("ad_id")
-      .eq("event_type", "click");
+      .eq("event_type", "click")
+      .gte("created_at", fromISO)
+      .lte("created_at", toISO);
 
     // Group by ad_id and count
     const impressionCounts: { [key: string]: number } = {};
@@ -149,6 +168,18 @@ const AdminBlogAds = () => {
     });
 
     setAnalytics(analyticsData);
+    setAnalyticsLoading(false);
+  };
+
+  const handleDateRangeChange = (from: Date, to: Date) => {
+    setDateRange({ from, to });
+    fetchAnalytics(from, to);
+  };
+
+  const applyPresetRange = (days: number) => {
+    const to = new Date();
+    const from = subDays(to, days);
+    handleDateRangeChange(from, to);
   };
 
   const getAdAnalytics = (adId: string) => {
@@ -518,6 +549,62 @@ const AdminBlogAds = () => {
 
         <TabsContent value="analytics" className="mt-4">
           <div className="space-y-4">
+            {/* Date Range Filter */}
+            <div className="bg-card rounded-xl border border-border p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Date Range:</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-[130px] justify-start text-left font-normal">
+                        {format(dateRange.from, "MMM d, yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={dateRange.from}
+                        onSelect={(date) => date && handleDateRangeChange(date, dateRange.to)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-muted-foreground">to</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-[130px] justify-start text-left font-normal">
+                        {format(dateRange.to, "MMM d, yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={dateRange.to}
+                        onSelect={(date) => date && handleDateRangeChange(dateRange.from, date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => fetchAnalytics()}
+                    disabled={analyticsLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${analyticsLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => applyPresetRange(7)}>Last 7 days</Button>
+                  <Button variant="outline" size="sm" onClick={() => applyPresetRange(30)}>Last 30 days</Button>
+                  <Button variant="outline" size="sm" onClick={() => applyPresetRange(90)}>Last 90 days</Button>
+                </div>
+              </div>
+            </div>
+
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-card rounded-xl border border-border p-4">
@@ -526,7 +613,7 @@ const AdminBlogAds = () => {
                   <span className="text-sm">Total Impressions</span>
                 </div>
                 <p className="text-2xl font-bold text-foreground">
-                  {analytics.reduce((sum, a) => sum + a.impressions, 0).toLocaleString()}
+                  {analyticsLoading ? "..." : analytics.reduce((sum, a) => sum + a.impressions, 0).toLocaleString()}
                 </p>
               </div>
               <div className="bg-card rounded-xl border border-border p-4">
@@ -535,7 +622,7 @@ const AdminBlogAds = () => {
                   <span className="text-sm">Total Clicks</span>
                 </div>
                 <p className="text-2xl font-bold text-foreground">
-                  {analytics.reduce((sum, a) => sum + a.clicks, 0).toLocaleString()}
+                  {analyticsLoading ? "..." : analytics.reduce((sum, a) => sum + a.clicks, 0).toLocaleString()}
                 </p>
               </div>
               <div className="bg-card rounded-xl border border-border p-4">
@@ -544,7 +631,7 @@ const AdminBlogAds = () => {
                   <span className="text-sm">Average CTR</span>
                 </div>
                 <p className="text-2xl font-bold text-primary">
-                  {analytics.length > 0
+                  {analyticsLoading ? "..." : analytics.length > 0
                     ? (analytics.reduce((sum, a) => sum + a.ctr, 0) / analytics.length).toFixed(2)
                     : "0.00"}%
                 </p>
