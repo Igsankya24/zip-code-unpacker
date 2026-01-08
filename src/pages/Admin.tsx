@@ -780,7 +780,7 @@ const Admin = () => {
       case "coupons":
         return <AdminCoupons />;
       case "messages":
-        return <AdminMessages />;
+        return <AdminMessages onUnreadCountChange={(count) => setStats(prev => ({ ...prev, unreadMessages: count }))} />;
       case "bot":
         return <AdminBot />;
       case "user-access":
