@@ -24,7 +24,11 @@ interface ContactMessage {
   created_at: string | null;
 }
 
-const AdminMessages = () => {
+interface AdminMessagesProps {
+  onUnreadCountChange?: (count: number) => void;
+}
+
+const AdminMessages = ({ onUnreadCountChange }: AdminMessagesProps) => {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -61,7 +65,11 @@ const AdminMessages = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      setMessages(messages.map((m) => (m.id === id ? { ...m, is_read: !currentStatus } : m)));
+      const updatedMessages = messages.map((m) => (m.id === id ? { ...m, is_read: !currentStatus } : m));
+      setMessages(updatedMessages);
+      // Notify parent of new unread count
+      const newUnreadCount = updatedMessages.filter((m) => !m.is_read).length;
+      onUnreadCountChange?.(newUnreadCount);
     }
   };
 
