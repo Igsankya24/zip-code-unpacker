@@ -33,7 +33,8 @@ import {
   UserCheck,
   Newspaper,
   Star,
-  Megaphone
+  Megaphone,
+  CreditCard
 } from "lucide-react";
 import AdminServices from "@/components/admin/AdminServices";
 import AdminSettings from "@/components/admin/AdminSettings";
@@ -58,6 +59,7 @@ import AdminTeamMembers from "@/components/admin/AdminTeamMembers";
 import AdminBlog from "@/components/admin/AdminBlog";
 import AdminBlogAds from "@/components/admin/AdminBlogAds";
 import AdminTestimonials from "@/components/admin/AdminTestimonials";
+import AdminPaymentGateway from "@/components/admin/AdminPaymentGateway";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -76,7 +78,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type AdminTab = "dashboard" | "analytics" | "traffic" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys" | "team-members" | "blog" | "blog-ads" | "testimonials";
+type AdminTab = "dashboard" | "analytics" | "traffic" | "appointments" | "users" | "services" | "service-projects" | "coupons" | "messages" | "bot" | "settings" | "profile" | "permissions" | "deletion-requests" | "customization" | "user-permissions" | "user-access" | "invoices" | "technicians" | "api-keys" | "team-members" | "blog" | "blog-ads" | "testimonials" | "payment-gateway";
 
 interface DashboardStats {
   totalUsers: number;
@@ -571,6 +573,7 @@ const Admin = () => {
     { id: "user-permissions" as AdminTab, label: "User Roles", icon: UserCog, visible: isSuperAdmin },
     { id: "permissions" as AdminTab, label: "Admin Permissions", icon: Shield, visible: isSuperAdmin },
     { id: "api-keys" as AdminTab, label: "API Keys", icon: Key, visible: isSuperAdmin },
+    { id: "payment-gateway" as AdminTab, label: "Payment Gateway", icon: CreditCard, visible: isSuperAdmin },
     { id: "deletion-requests" as AdminTab, label: "Deletion Requests", icon: Trash2, badge: stats.pendingDeletionRequests > 0 ? stats.pendingDeletionRequests : undefined, visible: isSuperAdmin },
     { id: "profile" as AdminTab, label: "My Profile", icon: UserCircle, visible: true },
     { id: "settings" as AdminTab, label: "Settings", icon: Settings, visible: permissions.can_view_settings },
@@ -775,6 +778,8 @@ const Admin = () => {
         return <AdminTechnicians />;
       case "api-keys":
         return <AdminApiKeys isSuperAdmin={isSuperAdmin} />;
+      case "payment-gateway":
+        return isSuperAdmin ? <AdminPaymentGateway /> : null;
       case "users":
         return <AdminUsers />;
       case "coupons":
