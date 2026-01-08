@@ -44,6 +44,10 @@ interface Permissions {
   can_manage_bot_settings: boolean;
   can_view_deletion_requests: boolean;
   can_manage_deletion_requests: boolean;
+  can_view_blog: boolean;
+  can_manage_blog: boolean;
+  can_view_blog_ads: boolean;
+  can_manage_blog_ads: boolean;
 }
 
 const defaultPermissions: Permissions = {
@@ -71,6 +75,10 @@ const defaultPermissions: Permissions = {
   can_manage_bot_settings: false,
   can_view_deletion_requests: true,
   can_manage_deletion_requests: false,
+  can_view_blog: true,
+  can_manage_blog: false,
+  can_view_blog_ads: true,
+  can_manage_blog_ads: false,
 };
 
 const AdminPermissions = () => {
@@ -169,6 +177,10 @@ const AdminPermissions = () => {
         can_manage_bot_settings: data.can_manage_bot_settings ?? false,
         can_view_deletion_requests: data.can_view_deletion_requests ?? true,
         can_manage_deletion_requests: data.can_manage_deletion_requests ?? false,
+        can_view_blog: data.can_view_blog ?? true,
+        can_manage_blog: data.can_manage_blog ?? false,
+        can_view_blog_ads: data.can_view_blog_ads ?? true,
+        can_manage_blog_ads: data.can_manage_blog_ads ?? false,
       });
     } else {
       setPermissions(defaultPermissions);
@@ -432,6 +444,30 @@ const AdminPermissions = () => {
                   label="Manage Deletion Requests" 
                   permKey="can_manage_deletion_requests" 
                   description="Can approve or reject deletion requests"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Blog</h4>
+                <PermissionRow 
+                  label="View Blog Posts" 
+                  permKey="can_view_blog" 
+                  description="Can view blog posts and analytics"
+                />
+                <PermissionRow 
+                  label="Manage Blog Posts" 
+                  permKey="can_manage_blog" 
+                  description="Can add, edit, delete blog posts, categories, and tags"
+                />
+                <PermissionRow 
+                  label="View Blog Ads" 
+                  permKey="can_view_blog_ads" 
+                  description="Can view blog ad placements"
+                />
+                <PermissionRow 
+                  label="Manage Blog Ads" 
+                  permKey="can_manage_blog_ads" 
+                  description="Can add, edit, delete blog ads"
                 />
               </div>
 

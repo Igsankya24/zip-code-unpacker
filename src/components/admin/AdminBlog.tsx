@@ -487,7 +487,9 @@ const AdminBlog = () => {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground truncate">{post.excerpt || "No excerpt"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">By {post.author_name} • {post.views_count} views • {new Date(post.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      By {post.author_name} • <Eye className="w-3 h-3 inline" /> {post.views_count} views • {new Date(post.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={() => togglePublish(post)} title={post.is_published ? "Unpublish" : "Publish"}>
