@@ -858,7 +858,7 @@ const Admin = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-border flex-shrink-0 space-y-3">
+        <div className="p-4 border-t border-border flex-shrink-0">
           <div className="px-4">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-foreground">
@@ -868,15 +868,6 @@ const Admin = () => {
             </div>
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSignOut}
-            className="w-full flex items-center justify-center gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </Button>
         </div>
       </aside>
 

@@ -83,14 +83,16 @@ const Auth = () => {
   const getEmailByUsername = async (username: string): Promise<string | null> => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("email")
+      .select("email, user_id")
       .ilike("username", username)
       .maybeSingle();
     
     if (error || !data) {
       return null;
     }
-    return data.email;
+    
+    // Return email if available, otherwise return null (auth will fail)
+    return data.email || null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
