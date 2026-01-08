@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { Calendar, User, Eye, ArrowRight, Tag, Folder, X } from "lucide-react";
+import { Calendar, User, ArrowRight, Tag, Folder, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -239,10 +239,6 @@ const Blog = () => {
                               {new Date(post.published_at).toLocaleDateString()}
                             </span>
                           )}
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
-                            {post.views_count} views
-                          </span>
                           {getCategoryName(post.category_id) && (
                             <Badge
                               variant="outline"

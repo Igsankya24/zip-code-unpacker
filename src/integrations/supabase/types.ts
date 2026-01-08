@@ -20,6 +20,8 @@ export type Database = {
           can_delete_appointments: boolean | null
           can_export_data: boolean | null
           can_manage_api_keys: boolean | null
+          can_manage_blog: boolean | null
+          can_manage_blog_ads: boolean | null
           can_manage_bot_settings: boolean | null
           can_manage_coupons: boolean | null
           can_manage_deletion_requests: boolean | null
@@ -31,6 +33,8 @@ export type Database = {
           can_view_analytics: boolean | null
           can_view_api_keys: boolean | null
           can_view_appointments: boolean | null
+          can_view_blog: boolean | null
+          can_view_blog_ads: boolean | null
           can_view_bot_settings: boolean | null
           can_view_coupons: boolean | null
           can_view_deletion_requests: boolean | null
@@ -50,6 +54,8 @@ export type Database = {
           can_delete_appointments?: boolean | null
           can_export_data?: boolean | null
           can_manage_api_keys?: boolean | null
+          can_manage_blog?: boolean | null
+          can_manage_blog_ads?: boolean | null
           can_manage_bot_settings?: boolean | null
           can_manage_coupons?: boolean | null
           can_manage_deletion_requests?: boolean | null
@@ -61,6 +67,8 @@ export type Database = {
           can_view_analytics?: boolean | null
           can_view_api_keys?: boolean | null
           can_view_appointments?: boolean | null
+          can_view_blog?: boolean | null
+          can_view_blog_ads?: boolean | null
           can_view_bot_settings?: boolean | null
           can_view_coupons?: boolean | null
           can_view_deletion_requests?: boolean | null
@@ -80,6 +88,8 @@ export type Database = {
           can_delete_appointments?: boolean | null
           can_export_data?: boolean | null
           can_manage_api_keys?: boolean | null
+          can_manage_blog?: boolean | null
+          can_manage_blog_ads?: boolean | null
           can_manage_bot_settings?: boolean | null
           can_manage_coupons?: boolean | null
           can_manage_deletion_requests?: boolean | null
@@ -91,6 +101,8 @@ export type Database = {
           can_view_analytics?: boolean | null
           can_view_api_keys?: boolean | null
           can_view_appointments?: boolean | null
+          can_view_blog?: boolean | null
+          can_view_blog_ads?: boolean | null
           can_view_bot_settings?: boolean | null
           can_view_coupons?: boolean | null
           can_view_deletion_requests?: boolean | null
