@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, User, Mail, Phone, Tag, Briefcase, ShieldAlert } from "lucide-react";
+import { Calendar, Clock, User, Mail, Phone, Tag, Briefcase, ShieldAlert, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useRazorpay } from "@/hooks/useRazorpay";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import {
@@ -115,6 +116,7 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
   const [deniedFeature, setDeniedFeature] = useState("");
   const { toast } = useToast();
   const { user, userAccess } = useAuth();
+  const { initiatePayment, isConfigured: isPaymentConfigured, loading: paymentLoading } = useRazorpay();
   const navigate = useNavigate();
 
   // Check if user has access to a feature
@@ -262,7 +264,7 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (withPayment: boolean = false) => {
     // Check access for logged-in users
     if (user && !checkAccess("can_book_appointments", "book appointments")) {
       return;
@@ -287,6 +289,16 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
 
     setSubmitting(true);
 
+    // Get service details for payment
+    const serviceData = getSelectedServiceData();
+    const servicePrice = serviceData?.price || 0;
+    
+    // Calculate final price with discount
+    let finalPrice = servicePrice;
+    if (appliedCoupon) {
+      finalPrice = servicePrice - (servicePrice * appliedCoupon.discount_percent / 100);
+    }
+
     // Build notes with coupon info only (no PII)
     const noteParts: string[] = [];
     if (appliedCoupon) {
@@ -298,7 +310,7 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
       service_id: selectedService,
       appointment_date: format(selectedDate, "yyyy-MM-dd"),
       appointment_time: convertTo24Hr(selectedTime),
-      status: "pending",
+      status: withPayment ? "pending_payment" : "pending",
       notes: noteParts.length ? noteParts.join(" | ") : null,
     };
 
@@ -327,23 +339,59 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
 
       if (guestError) {
         console.error("Error storing guest details:", guestError);
-        // Don't fail the booking, just log the error
       }
     }
 
-    if (appliedCoupon) {
-      await supabase
-        .from("coupons")
-        .update({ current_uses: appliedCoupon.current_uses + 1 })
-        .eq("id", appliedCoupon.id);
-    }
+    // Handle payment if requested and amount > 0
+    if (withPayment && finalPrice > 0 && isPaymentConfigured) {
+      const paymentResult = await initiatePayment({
+        amount: finalPrice,
+        description: `Booking: ${serviceData?.name || "Service"}`,
+        appointmentId: data?.id,
+        customerName: currentUser ? undefined : guestDetails.name,
+        customerEmail: currentUser?.email || guestDetails.email,
+        customerPhone: currentUser ? undefined : guestDetails.phone,
+        notes: {
+          service: serviceData?.name || "",
+          date: format(selectedDate, "yyyy-MM-dd"),
+          time: selectedTime,
+        },
+      });
 
-    toast({
-      title: "Booking Submitted!",
-      description: data?.reference_id
-        ? `Your request was received. Reference: ${data.reference_id}`
-        : "Your appointment request has been received. We'll confirm it shortly.",
-    });
+      if (!paymentResult.success) {
+        // Payment failed or cancelled - update status
+        await supabase
+          .from("appointments")
+          .update({ status: "payment_failed" })
+          .eq("id", data.id);
+        
+        setSubmitting(false);
+        return;
+      }
+
+      // Payment successful - appointment already updated by edge function
+      toast({
+        title: "Booking Confirmed!",
+        description: data?.reference_id
+          ? `Payment successful. Reference: ${data.reference_id}`
+          : "Your appointment has been confirmed with payment.",
+      });
+    } else {
+      // No payment flow
+      if (appliedCoupon) {
+        await supabase
+          .from("coupons")
+          .update({ current_uses: appliedCoupon.current_uses + 1 })
+          .eq("id", appliedCoupon.id);
+      }
+
+      toast({
+        title: "Booking Submitted!",
+        description: data?.reference_id
+          ? `Your request was received. Reference: ${data.reference_id}`
+          : "Your appointment request has been received. We'll confirm it shortly.",
+      });
+    }
 
     setSubmitting(false);
     resetForm();
@@ -458,6 +506,26 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
                     </p>
                   </div>
 
+                  {/* Service Selection for Guest */}
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Service *</label>
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-muted-foreground" />
+                      <Select value={selectedService} onValueChange={setSelectedService}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select a service" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {services.map((service) => (
+                            <SelectItem key={service.id} value={service.id}>
+                              {service.name} {service.price ? `- ₹${service.price}` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-sm font-medium mb-1 block">Name *</label>
                     <div className="flex items-center gap-2">
@@ -512,9 +580,47 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
                     </Button>
                   </div>
 
-                  <Button onClick={handleSubmit} disabled={submitting} className="w-full">
-                    {submitting ? "Submitting..." : "Confirm Booking"}
-                  </Button>
+                  {/* Guest booking buttons */}
+                  <div className="space-y-2">
+                    {isPaymentConfigured && getSelectedServiceData()?.price ? (
+                      <>
+                        <Button 
+                          onClick={() => handleSubmit(true)} 
+                          disabled={submitting || paymentLoading || !selectedService} 
+                          className="w-full"
+                        >
+                          {submitting || paymentLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              Pay ₹{(() => {
+                                const price = getSelectedServiceData()?.price || 0;
+                                return appliedCoupon 
+                                  ? Math.round(price - (price * appliedCoupon.discount_percent / 100))
+                                  : price;
+                              })()} & Book
+                            </>
+                          )}
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => handleSubmit(false)} 
+                          disabled={submitting || !selectedService} 
+                          className="w-full"
+                        >
+                          {submitting ? "Submitting..." : "Book Without Payment"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button onClick={() => handleSubmit(false)} disabled={submitting || !selectedService} className="w-full">
+                        {submitting ? "Submitting..." : "Confirm Booking"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -569,9 +675,51 @@ const BookingPopup = ({ isOpen: externalIsOpen, onOpenChange, preSelectedService
                     )}
                   </div>
 
-                  <Button onClick={handleSubmit} disabled={submitting || !selectedService} className="w-full">
-                    {submitting ? "Submitting..." : "Confirm Booking"}
-                  </Button>
+                  {/* Logged-in user booking buttons */}
+                  <div className="space-y-2">
+                    {isPaymentConfigured && getSelectedServiceData()?.price ? (
+                      <>
+                        <Button 
+                          onClick={() => handleSubmit(true)} 
+                          disabled={submitting || paymentLoading || !selectedService} 
+                          className="w-full"
+                        >
+                          {submitting || paymentLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              Pay ₹{(() => {
+                                const price = getSelectedServiceData()?.price || 0;
+                                return appliedCoupon 
+                                  ? Math.round(price - (price * appliedCoupon.discount_percent / 100))
+                                  : price;
+                              })()} & Book
+                            </>
+                          )}
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => handleSubmit(false)} 
+                          disabled={submitting || !selectedService} 
+                          className="w-full"
+                        >
+                          {submitting ? "Submitting..." : "Book Without Payment"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button 
+                        onClick={() => handleSubmit(false)} 
+                        disabled={submitting || !selectedService} 
+                        className="w-full"
+                      >
+                        {submitting ? "Submitting..." : "Confirm Booking"}
+                      </Button>
+                    )}
+                  </div>
                 </>
               )}
             </div>
