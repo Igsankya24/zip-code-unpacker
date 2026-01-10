@@ -2,3 +2,6 @@ project_id = "fhaisuzqkqdupmrfeldd"
 
 [functions.change-user-password]
 verify_jwt = false
+
+[functions.razorpay-payment]
+verify_jwt = false
